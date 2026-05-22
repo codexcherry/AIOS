@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "aios"
+version = "1.1.0"
+description = "Cognitive Workflow Orchestration System — Windows + Linux"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "psutil>=5.9",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+screenshot = ["Pillow>=10.0"]
+all = ["Pillow>=10.0"]
+
+[project.scripts]
+aios = "aios.main:main"

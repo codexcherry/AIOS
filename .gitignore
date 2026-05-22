@@ -1,0 +1,57 @@
+# ── Virtual Environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Python Cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Build / Distribution ──────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
+# ── Environment / Secrets ─────────────────────────────────────────────────────
+.env
+# .env.example is intentionally NOT ignored (safe template)
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+aios.log*
+
+# ── Runtime / Generated Files ─────────────────────────────────────────────────
+hello.txt
+*.tmp
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── OS Files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Screenshots generated at runtime ─────────────────────────────────────────
+# (saved to ~/Pictures/AIOS/ which is outside the repo — nothing to ignore here)
+
+# ── AIOS User Data (stored in ~/.aios/ — outside repo) ───────────────────────
+# config.json, memory/, rl/, notes.json are all in ~/.aios/ not here
+# Nothing to ignore — already outside the repo.

@@ -1,0 +1,15 @@
+# Core
+requests
+psutil
+rich
+Pillow
+
+# Voice (install for voice mode — all optional)
+SpeechRecognition
+pyttsx3
+# pyaudio         ← uncomment after installing portaudio:
+#                     Windows: pip install pyaudio
+#                     Linux:   sudo apt install portaudio19-dev && pip install pyaudio
+# pvporcupine     ← uncomment + set PICOVOICE_ACCESS_KEY in .env for accurate wake-word
+#                   Free key: https://console.picovoice.ai/
+# vosk            ← uncomment for fully-offline speech recognition (no internet)
