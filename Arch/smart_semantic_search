@@ -1,0 +1,145 @@
+Read [](file:///c%3A/PC/AIOS/aios/file_manager.py#1-1), lines 1 to 200
+
+Read [](file:///c%3A/PC/AIOS/aios/file_manager.py#200-200), lines 200 to 270
+
+Searched for text `semantic_file_match\|extract_search_keywords` (`**/aios/llm_engine.py`), no results
+
+Searched for regex `semantic_file_match|extract_search_keywords` (`**/aios/llm_engine.py`), 2 results
+
+Read [](file:///c%3A/PC/AIOS/aios/llm_engine.py#258-258), lines 258 to 330
+
+Here's the **exact internal pipeline** from the actual code — not what the name suggests, but what really runs:
+
+---
+
+## Actual Pipeline — `smart_search("search for the file cms500")`
+
+```
+query = "search for the file cms500"
+        │
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│  STAGE 0 — Type Filter  (file_manager.py:85)            │
+│  _detect_type_filter(query)                             │
+│  Regex scans for: pdf, word, excel, presentation, etc.  │
+│  "cms500" → no type keyword → ext_filter = None         │
+│  (search all INDEXABLE_EXTENSIONS)                      │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+        ┌──────────────▼──────────────┐
+        │  ThreadPoolExecutor          │  ← runs stages 1+2 simultaneously
+        │  max_workers = min(roots+1, 8)│
+        └──┬───────────────────┬───────┘
+           │                   │
+  ┌────────▼──────┐   ┌────────▼──────────────────────────┐
+  │  STAGE 1      │   │  STAGE 2 — Filesystem Scan         │
+  │  LLM Keywords │   │  _scan_directory() × 7 roots       │
+  │               │   │                                    │
+  │  Ollama call  │   │  root.rglob("*") on:               │
+  │  temp=0.1     │   │  ~/Documents, ~/Desktop,           │
+  │               │   │  ~/Downloads, ~/Projects,          │
+  │  System:      │   │  ~/, %USERPROFILE%/, cwd/          │
+  │  "Extract     │   │                                    │
+  │  useful       │   │  Per file collects:                │
+  │  keywords     │   │  name, stem, suffix, size,         │
+  │  from query.  │   │  modified (ISO), parent path       │
+  │  Return JSON  │   │                                    │
+  │  array"       │   │  Skips: node_modules, .git,        │
+  │               │   │  __pycache__, venv, AppData,       │
+  │  "cms500"     │   │  temp, Temp                        │
+  │  → LLM output │   │  Max 2000 files per root           │
+  │  ["cms500",   │   └────────────────────────────────────┘
+  │   "cms",      │
+  │   "500"]      │
+  └───────┬───────┘
+          │
+          └────────────────────────────┐
+                                       │ merge results
+                                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  STAGE 3 — Merge + Deduplicate  (file_manager.py:176)    │
+│  • Prepend memory-indexed files (memory.search_files())  │
+│  • Deduplicate by absolute path                          │
+│  Combined keywords = LLM_keywords + raw_query_words      │
+│  e.g. ["cms500", "cms", "500"] + ["cms500"]              │
+│  (after skipping: find, my, the, file, search, get…)     │
+└──────────────────────┬───────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  STAGE 4 — Keyword Pre-Filter  (file_manager.py:132)     │
+│  _keyword_filter(all_files, ["cms500", "cms", "500"])    │
+│                                                          │
+│  For each file, pure Python scoring:                     │
+│    +5  if keyword in file STEM  (e.g. "cms500.pdf")      │
+│    +3  if keyword in full NAME  (e.g. "my_cms500.pdf")   │
+│    +1  if keyword anywhere in PATH                       │
+│                                                          │
+│  Sorted by score DESC                                    │
+│  If nothing scores > 0 → fallback to 50 recent files    │
+│  Returns top 100 candidates                              │
+└──────────────────────┬───────────────────────────────────┘
+                       │
+                  ≤ 5 candidates?
+                  ┌────┴────┐
+                  │ YES     │ NO
+                  ▼         ▼
+             return      ┌────────────────────────────────────┐
+             directly    │  STAGE 5 — LLM Re-Ranking           │
+                         │  semantic_file_match()              │
+                         │                                     │
+                         │  Sends to Ollama (temp=0.1):        │
+                         │  System: "You are a semantic file   │
+                         │  search engine. Return ONLY a JSON  │
+                         │  array of 0-based indices. Max 10." │
+                         │                                     │
+                         │  Prompt:                            │
+                         │  "Query: search for the file cms500 │
+                         │   Files:                            │
+                         │   0: cms500.pdf | C:\Docs | 2026-05 │
+                         │   1: budget.xlsx | C:\Desktop | ... │
+                         │   2: cms500_v2.docx | C:\Docs | ... │
+                         │   ..."                              │
+                         │                                     │
+                         │  LLM returns: [0, 2, ...]           │
+                         │  (indices of most relevant files)   │
+                         └──────────────┬──────────────────────┘
+                                        │
+                                        ▼
+                         ┌──────────────────────────────────┐
+                         │  Reorder candidates by LLM index  │
+                         │  Fill remaining slots with top   │
+                         │  keyword-scored files             │
+                         │  Return top 10                   │
+                         └──────────────────────────────────┘
+```
+
+---
+
+## What It Is NOT
+
+This is **NOT** vector/embedding-based semantic search. There are no:
+- `sentence-transformers` / `faiss` / `chromadb`
+- Cosine similarity calculations
+- Embedding vectors
+
+---
+
+## What It Actually Is
+
+**LLM-as-a-Reranker** — the LLM is used twice:
+
+| Call | Function | What it does |
+|---|---|---|
+| Call 1 | `extract_search_keywords()` | Query expansion — turns `"cms500"` into `["cms500", "cms", "500"]` |
+| Call 2 | `semantic_file_match()` | Reranking — given the top 100 candidate filenames, picks the best indices |
+
+The actual file matching is **pure keyword scoring** (Python string `.in` checks). The LLM only **expands the query** and **reorders the already-filtered results**.
+
+---
+
+## Why "cms500" Returns Empty
+
+The pre-filter scores by `keyword in stem`. If no file on disk has `cms500`, `cms`, or `500` anywhere in its name or path → score = 0 for all files → fallback returns 50 most recently modified files → LLM reranks those → none are relevant → empty display.
+
+**Fix:** Use `/files cms500` directly (skips the `search for the file` prefix noise) or use the actual filename you're looking for.
