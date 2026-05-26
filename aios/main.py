@@ -40,11 +40,13 @@ from aios.features.screenshot import take_screenshot
 from aios.features.notes import add_note, list_notes
 from aios.rl_memory import rl
 from aios.voice import voice
+from aios.daemons import start_all as _start_all_daemons
 
 console = Console() if RICH else None
 
 # ── Global mutable state ──────────────────────────────────────────────────────
 _VOICE_MODE: bool = cfg.get("voice", "enabled", False)
+_daemons: dict = {}
 
 
 # ── Display helpers ──────────────────────────────────────────────────────────
@@ -590,6 +592,20 @@ def route_intent(user_input: str):
             rl.record_interaction(user_input, "assistant", action)
             rl.set_last_input(user_input, "assistant")
             return
+        # File search (router caught it without LLM)
+        if router_result.file_search_query is not None:
+            q = router_result.file_search_query
+            if q:
+                handle_file_search(q)
+            else:
+                # empty query → show recent files
+                files = recent_files(n=10)
+                cprint("\n[cyan]Recent Files:[/cyan]")
+                for i, f in enumerate(files, 1):
+                    cprint(f"  {i:2}. [cyan]{f['name']}[/cyan]  [dim]{f['parent']}[/dim]  {f.get('modified','')[:10]}")
+            rl.record_interaction(user_input, "file_search", q or "recent")
+            rl.set_last_input(user_input, "file_search")
+            return
         # File operation
         if router_result.file_action:
             handle_file_op(
@@ -612,6 +628,23 @@ def route_intent(user_input: str):
         rl.set_last_input(user_input, "launch_apps")
         return
 
+    # ── Pre-LLM: process-query keyword shortcut (no LLM needed) ────────────────
+    _PROC_KEYWORDS = (
+        "ram", "memory", "cpu", "process", "processes", "eating",
+        "using", "hogging", "consuming", "running apps", "task",
+        "what's using", "whats using", "what is using",
+        "slow", "performance", "resource",
+    )
+    _lower_input = user_input.lower()
+    if any(kw in _lower_input for kw in _PROC_KEYWORDS) and any(
+        w in _lower_input for w in ("ram", "memory", "cpu", "process", "eating", "hogging", "consuming")
+    ):
+        cprint("[dim]Matched: process query (instant)[/dim]\n")
+        handle_process_manager()
+        rl.record_interaction(user_input, "process_management", "status")
+        rl.set_last_input(user_input, "process_management")
+        return
+
     # ── Stage 2: LLM intent parser ────────────────────────────────────────────
     cprint("[dim]Parsing intent...[/dim]")
     intent = parse_intent(user_input, context=ctx)
@@ -628,25 +661,35 @@ def route_intent(user_input: str):
     rl.set_last_input(user_input, intent_type)
 
     # ── Route ────────────────────────────────────────────────────────────────
+    # NOTE: specific intent types must be checked BEFORE the generic
+    # `apps` catch-all so that file_search / file_op / shell intents are
+    # never hijacked by a Chrome app hint from the LLM.
 
-    if intent_type == "launch_apps" or (apps and intent_type != "conversation"):
-        handle_launch_apps(apps)
-        if commands:
-            _run_commands(commands)
-        rl.record_interaction(user_input, intent_type, ",".join(apps))
-
-    elif intent_type == "workflow" or workflow_name:
-        engine = WorkflowEngine(progress_callback=cprint)
-        result = engine.run_by_name(workflow_name or goal)
-        if not result:
-            result = engine.run_from_goal(goal, context=ctx)
-        rl.record_interaction(user_input, "workflow", workflow_name or goal)
+    if intent_type == "file_op":
+        # Infer read vs update from query words when LLM doesn't specify
+        _read_words = ("what", "show", "read", "view", "display", "print",
+                       "see", "contents", "inside", "in the file")
+        default_action = (
+            "read" if any(w in user_input.lower() for w in _read_words)
+            else "update"
+        )
+        file_action = intent.get("file_action") or default_action
+        filename = intent.get("filename") or ""
+        content_desc = intent.get("content_desc") or goal
+        new_filename = intent.get("new_filename")
+        if not filename:
+            cprint("[red]✗ Could not determine filename from your request.[/red]")
+        else:
+            handle_file_op(file_action, filename, content_desc, new_filename)
+        rl.record_interaction(user_input, "file_op", file_action)
 
     elif intent_type == "file_search" or file_query:
         handle_file_search(file_query or goal)
         rl.record_interaction(user_input, "file_search", file_query or goal)
 
-    elif intent_type == "process_management" or process_action:
+    elif intent_type == "process_management" or process_action or (
+        intent_type == "shell_command" and process_action in ("status", "optimize", "kill")
+    ):
         if process_action in ("status", None):
             handle_process_manager()
         elif process_action == "optimize":
@@ -654,6 +697,7 @@ def route_intent(user_input: str):
             analysis = ai_optimize()
             cprint(f"\n{analysis}")
         rl.record_interaction(user_input, "process_management", process_action or "status")
+        return  # skip duplicate block below
 
     elif intent_type == "shell_command" or commands:
         if commands:
@@ -663,6 +707,19 @@ def route_intent(user_input: str):
             result = shell.run(user_input)
             _display_shell_result(result)
         rl.record_interaction(user_input, "shell_command", goal[:40])
+
+    elif intent_type == "workflow" or workflow_name:
+        engine = WorkflowEngine(progress_callback=cprint)
+        result = engine.run_by_name(workflow_name or goal)
+        if not result:
+            result = engine.run_from_goal(goal, context=ctx)
+        rl.record_interaction(user_input, "workflow", workflow_name or goal)
+
+    elif intent_type == "launch_apps" or apps:
+        handle_launch_apps(apps)
+        if commands:
+            _run_commands(commands)
+        rl.record_interaction(user_input, intent_type, ",".join(apps))
 
     else:
         cprint("[dim]Thinking...[/dim]")
@@ -729,6 +786,14 @@ def main():
     # ── Startup: voice wake listener ─────────────────────────────────────────
     if _VOICE_MODE:
         _start_voice_wake_listener()
+
+    # ── Startup: background daemons ──────────────────────────────────────────
+    global _daemons
+    try:
+        _daemons = _start_all_daemons(notify=cprint)
+        log.info("Background daemons started: %s", list(_daemons.keys()))
+    except Exception as _de:
+        log.warning("Daemons failed to start: %s", _de)
 
     cprint("[dim]Type /help for commands, or just speak naturally.[/dim]\n")
 
@@ -868,6 +933,29 @@ def main():
 
         elif lower == "/joke":
             handle_assistant("joke")
+
+        elif lower == "/daemons":
+            if not _daemons:
+                cprint("[yellow]No daemons running.[/yellow]")
+            elif RICH:
+                tbl = Table(title="AIOS Background Daemons", show_lines=True)
+                tbl.add_column("Daemon", style="cyan")
+                tbl.add_column("Status")
+                tbl.add_column("Details", style="dim")
+                for name, d in _daemons.items():
+                    alive = d.is_alive()
+                    color = "green" if alive else "red"
+                    label = "running" if alive else "stopped"
+                    try:
+                        info = d.status()
+                        detail = "  ".join(f"{k}={v}" for k, v in info.items() if k != "running")
+                    except Exception:
+                        detail = ""
+                    tbl.add_row(name, f"[{color}]{label}[/{color}]", detail)
+                console.print(tbl)
+            else:
+                for name, d in _daemons.items():
+                    print(f"  {name}: {'alive' if d.is_alive() else 'stopped'}")
 
         elif lower == "/memory":
             handle_memory_view()

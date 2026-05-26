@@ -27,15 +27,17 @@ AIOS:            You → state goal → AI orchestrates everything at once
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                         AIOS CLI / Voice                         │
-│                    main.py  ·  voice.py                          │
+│                           AIOS CLI                               │
+│                          main.py                                 │
 └────────────────────────────┬─────────────────────────────────────┘
-                             │  user input (text or speech)
-              ┌──────────────▼──────────────┐
-              │   Stage 1: URL Router        │  ← zero LLM, ~0 ms
-              │      url_router.py           │    45+ regex rules
-              │   + App Normalizer           │    70+ direct sites
-              └──────────────┬──────────────┘
+                             │  user input (natural language)
+              ┌──────────────▼──────────────────────────┐
+              │   Stage 1: URL Router + Smart Search     │  ← zero LLM, ~0 ms
+              │      url_router.py                       │    100+ regex rules
+              │   + App Normalizer  + file_manager.py    │    70+ direct sites
+              │   (web search · file search · maps       │    semantic file search
+              │    news · shopping · developer portals)  │    instant routing
+              └──────────────┬──────────────────────────┘
                              │  no match
               ┌──────────────▼──────────────┐
               │   Stage 2: LLM Engine        │  ← Ollama llama3.2:3b

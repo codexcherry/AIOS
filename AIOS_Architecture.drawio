@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" version="21.0.0" type="device">
+  <diagram name="AIOS Architecture" id="aios-arch">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══ TITLE ═══ -->
+        <mxCell id="2" value="AIOS — Cognitive Workflow Orchestration System"
+          style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="200" y="15" width="1250" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="Intent → Understanding → Parallel Execution → Contextual Computing"
+          style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontColor=#546e7a;"
+          vertex="1" parent="1">
+          <mxGeometry x="200" y="52" width="1250" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ INPUT LAYER ═══ -->
+        <mxCell id="10" value="&lt;b&gt;USER INPUT&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:11px'&gt;CLI Text  ·  Voice (SpeechRecognition / pyttsx3 TTS)&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontColor=#23395d;"
+          vertex="1" parent="1">
+          <mxGeometry x="527" y="90" width="596" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- input → url router -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#555555;"
+          edge="1" source="10" target="20" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ STAGE 1: URL ROUTER ═══ -->
+        <mxCell id="20" value="&lt;b&gt;STAGE 1 — URL Router&lt;/b&gt;  &lt;font color='#388e3c'&gt;⚡ ~0 ms | Zero LLM&lt;/font&gt;&lt;br/&gt;45+ regex rules  ·  70+ direct site mappings  ·  App Normalizer  ·  Multi-app detection"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontColor=#1b5e20;"
+          vertex="1" parent="1">
+          <mxGeometry x="377" y="200" width="896" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- url router match → App Launcher (right bypass) -->
+        <mxCell id="e2" value="match" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontStyle=2;fontSize=11;fontColor=#388e3c;exitX=1;exitY=0.5;exitDx=0;exitDy=0;"
+          edge="1" source="20" target="30" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1360" y="232" />
+              <mxPoint x="1360" y="475" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- url router no match → LLM -->
+        <mxCell id="e3" value="no match" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d6b656;fontStyle=2;fontSize=11;fontColor=#e65100;"
+          edge="1" source="20" target="25" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ STAGE 2: LLM ENGINE ═══ -->
+        <mxCell id="25" value="&lt;b&gt;STAGE 2 — LLM Engine&lt;/b&gt;  &lt;font color='#e65100'&gt;Ollama llama3.2:3b (local, no cloud)&lt;/font&gt;&lt;br/&gt;parse_intent() → structured JSON  ·  RL Context injected  ·  Exponential-backoff retry (3×)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=12;fontColor=#4a2700;"
+          vertex="1" parent="1">
+          <mxGeometry x="377" y="325" width="896" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ 7 HANDLER BOXES ═══ -->
+
+        <mxCell id="30" value="&lt;b&gt;App Launcher&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;winreg · glob · PATH&lt;br/&gt;ThreadPoolExecutor&lt;br/&gt;80+ apps&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="20" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="31" value="&lt;b&gt;AI Shell&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;NL → shell cmds&lt;br/&gt;CWD tracking&lt;br/&gt;Danger blocking&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="205" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="32" value="&lt;b&gt;File Operations&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;create · read · update&lt;br/&gt;append · delete&lt;br/&gt;rename · list&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="390" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="33" value="&lt;b&gt;Workflow Engine&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;5 built-in presets&lt;br/&gt;LLM plan gen&lt;br/&gt;Parallel groups&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="575" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="34" value="&lt;b&gt;Smart Search&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;Semantic file search&lt;br/&gt;LLM ranking&lt;br/&gt;Multi-root scan&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="760" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="35" value="&lt;b&gt;Process Manager&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;psutil monitoring&lt;br/&gt;AI optimization&lt;br/&gt;Safe process kill&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="945" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="36" value="&lt;b&gt;Features&lt;/b&gt;&lt;br/&gt;&lt;font style='font-size:10px'&gt;Greeting · Time&lt;br/&gt;Notes · Screenshot&lt;br/&gt;Wikipedia&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="1130" y="450" width="165" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- LLM → handlers -->
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="30" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="31" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="32" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="33" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="34" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="35" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;" edge="1" source="25" target="36" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══ PARALLEL EXECUTOR ═══ -->
+        <mxCell id="50" value="&lt;b&gt;Parallel Executor — concurrent.futures.ThreadPoolExecutor&lt;/b&gt;&lt;br/&gt;App launches · Workflow steps · File directory scans — all run simultaneously"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontColor=#333333;"
+          vertex="1" parent="1">
+          <mxGeometry x="377" y="597" width="896" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- handlers → executor -->
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="30" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="31" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="32" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="33" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="34" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="35" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#aaaaaa;" edge="1" source="36" target="50" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══ MEMORY LAYER ═══ -->
+
+        <mxCell id="60" value="&lt;b&gt;Context Memory&lt;/b&gt;  ~/.aios/memory/&lt;br/&gt;&lt;font style='font-size:10px'&gt;sessions.json  ·  workflows.json&lt;br/&gt;context.json  ·  file_index.json&lt;br/&gt;Injected into every LLM call&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontColor=#4a148c;"
+          vertex="1" parent="1">
+          <mxGeometry x="377" y="715" width="420" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="61" value="&lt;b&gt;RL Memory&lt;/b&gt;  ~/.aios/rl/&lt;br/&gt;&lt;font style='font-size:10px'&gt;corrections.json  ·  frequency.json&lt;br/&gt;user_profile.json&lt;br/&gt;Jaccard similarity retrieval&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontColor=#4a148c;"
+          vertex="1" parent="1">
+          <mxGeometry x="827" y="715" width="446" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- executor → memory -->
+        <mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;" edge="1" source="50" target="60" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;" edge="1" source="50" target="61" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- RL Memory → LLM (dashed feedback loop) -->
+        <mxCell id="e32" value="context injection" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;dashed=1;fontSize=10;fontColor=#9673a6;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.8;entryY=1;entryDx=0;entryDy=0;"
+          edge="1" source="61" target="25" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1050" y="320" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!--         SUBSYSTEM DETAIL SECTION             -->
+        <!-- ══════════════════════════════════════════════ -->
+
+        <mxCell id="99" value="— SUBSYSTEM INTERNALS —"
+          style="text;html=1;strokeColor=#90a4ae;fillColor=#eceff1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#37474f;"
+          vertex="1" parent="1">
+          <mxGeometry x="527" y="860" width="596" height="38" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- SMART SEARCH (file_manager.py)         -->
+        <!-- ═══════════════════════════════════════ -->
+        <mxCell id="A0" value="Smart Search  (file_manager.py)"
+          style="swimlane;fontStyle=1;align=center;startSize=32;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontColor=#1b5e20;"
+          vertex="1" parent="1">
+          <mxGeometry x="20" y="918" width="335" height="305" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A1" value="1.  NL Query Input"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="A0">
+          <mxGeometry x="15" y="42" width="305" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="A2" value="2.  Type Filter  (instant, no LLM)&#xa;pdf · doc · ppt · python · image · zip…"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="A0">
+          <mxGeometry x="15" y="82" width="305" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="A3" value="3.  Parallel Directory Scan  (ThreadPoolExecutor)&#xa;Documents · Desktop · Downloads · Projects · CWD"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="A0">
+          <mxGeometry x="15" y="130" width="305" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="A4" value="4.  LLM Keyword Extraction  (runs in parallel with scan)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="A0">
+          <mxGeometry x="15" y="180" width="305" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="A5" value="5.  Keyword Pre-filter  →  LLM Semantic Ranking"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="A0">
+          <mxGeometry x="15" y="220" width="305" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="A6" value="6.  Top 8 Results  +  Open-by-number prompt"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;"
+          vertex="1" parent="A0">
+          <mxGeometry x="15" y="260" width="305" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="Ae1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="A1" target="A2" parent="A0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ae2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="A2" target="A3" parent="A0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ae3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="A3" target="A4" parent="A0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ae4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="A4" target="A5" parent="A0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ae5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="A5" target="A6" parent="A0"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- FILE OPERATIONS (file_ops.py)           -->
+        <!-- ═══════════════════════════════════════ -->
+        <mxCell id="B0" value="File Operations  (file_ops.py)"
+          style="swimlane;fontStyle=1;align=center;startSize=32;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="375" y="918" width="310" height="305" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B1" value='NL Input  e.g. "create hello.py with sort func"'
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="B0">
+          <mxGeometry x="15" y="42" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="B2" value="Operation Detected&#xa;create · read · update · append · delete · rename · list"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="B0">
+          <mxGeometry x="15" y="82" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="B3" value="LLM Content Generation  (create / update only)&#xa;generate_file_content(description, filename)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="B0">
+          <mxGeometry x="15" y="132" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="B4" value="File I/O  (Path.write_text / read_text)&#xa;Confirmation prompt before delete"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="B0">
+          <mxGeometry x="15" y="182" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="B5" value="memory.index_file()  +  memory.log_command()"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;"
+          vertex="1" parent="B0">
+          <mxGeometry x="15" y="232" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="B6" value="Result returned to CLI with line numbers"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;"
+          vertex="1" parent="B0">
+          <mxGeometry x="15" y="272" width="280" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="Be1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="B1" target="B2" parent="B0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Be2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="B2" target="B3" parent="B0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Be3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="B3" target="B4" parent="B0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Be4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="B4" target="B5" parent="B0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Be5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="B5" target="B6" parent="B0"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- AI SHELL (ai_shell.py)                 -->
+        <!-- ═══════════════════════════════════════ -->
+        <mxCell id="C0" value="AI Shell  (ai_shell.py)"
+          style="swimlane;fontStyle=1;align=center;startSize=32;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=12;fontColor=#4a2700;"
+          vertex="1" parent="1">
+          <mxGeometry x="705" y="918" width="310" height="305" as="geometry" />
+        </mxCell>
+
+        <mxCell id="C1" value='NL Shell Input  e.g. "list all python files"'
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="C0">
+          <mxGeometry x="15" y="42" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="C2" value="Direct Command Map  (~20 built-in patterns)&#xa;list files · disk space · whoami · ip · uptime · cpu…"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="C0">
+          <mxGeometry x="15" y="82" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="C3" value="⚠  Dangerous Pattern Blocker&#xa;rm -rf · format · del /f · bcdedit · shutdown · dd"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;"
+          vertex="1" parent="C0">
+          <mxGeometry x="15" y="132" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="C4" value="LLM Translation  translate_to_shell()&#xa;Returns JSON array of shell commands"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="C0">
+          <mxGeometry x="15" y="182" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="C5" value="subprocess.run()  +  CWD Tracking  +  History Log"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="C0">
+          <mxGeometry x="15" y="232" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="C6" value="Output printed to terminal  (stdout + stderr)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;"
+          vertex="1" parent="C0">
+          <mxGeometry x="15" y="272" width="280" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="Ce1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;" edge="1" source="C1" target="C2" parent="C0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ce2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;" edge="1" source="C2" target="C3" parent="C0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ce3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;" edge="1" source="C3" target="C4" parent="C0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ce4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;" edge="1" source="C4" target="C5" parent="C0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Ce5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;" edge="1" source="C5" target="C6" parent="C0"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- AUTOMATION ENGINE (workflow_engine.py)  -->
+        <!-- ═══════════════════════════════════════ -->
+        <mxCell id="D0" value="Automation Engine  (workflow_engine.py)"
+          style="swimlane;fontStyle=1;align=center;startSize=32;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontColor=#4a148c;"
+          vertex="1" parent="1">
+          <mxGeometry x="1035" y="918" width="330" height="305" as="geometry" />
+        </mxCell>
+
+        <mxCell id="D1" value='Goal Input  e.g. "start dev mode"'
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;"
+          vertex="1" parent="D0">
+          <mxGeometry x="15" y="42" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="D2" value="Preset Lookup  (5 built-in workflows)&#xa;ai_research · dev_mode · focus_mode&#xa;morning_setup · presentation_mode"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="D0">
+          <mxGeometry x="15" y="82" width="300" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="D3" value="LLM Plan Generation  (if no preset match)&#xa;generate_workflow_plan() → step dict JSON"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="D0">
+          <mxGeometry x="15" y="140" width="300" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="D4" value="WorkflowExecutor&#xa;Parallel Groups  +  Sequential Steps&#xa;open_app · run_command · wait · notify"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;"
+          vertex="1" parent="D0">
+          <mxGeometry x="15" y="190" width="300" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="D5" value="memory.save_workflow()  +  Run Count Logging"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;"
+          vertex="1" parent="D0">
+          <mxGeometry x="15" y="248" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="D6" value="WorkflowEngine.run_from_goal() fallback"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;"
+          vertex="1" parent="D0">
+          <mxGeometry x="15" y="288" width="300" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="De1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;" edge="1" source="D1" target="D2" parent="D0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="De2" value="no match" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;fontSize=10;fontStyle=2;" edge="1" source="D2" target="D3" parent="D0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="De3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;" edge="1" source="D3" target="D4" parent="D0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="De4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;" edge="1" source="D4" target="D5" parent="D0"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- AI PROCESS MANAGER (process_manager.py) -->
+        <!-- ═══════════════════════════════════════ -->
+        <mxCell id="E0" value="AI Process Manager  (process_manager.py)"
+          style="swimlane;fontStyle=1;align=center;startSize=32;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontColor=#7f0000;"
+          vertex="1" parent="1">
+          <mxGeometry x="20" y="1250" width="680" height="195" as="geometry" />
+        </mxCell>
+
+        <mxCell id="E1" value="get_process_list(top_n=15)&#xa;psutil — sorted by RAM usage"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;"
+          vertex="1" parent="E0">
+          <mxGeometry x="15" y="42" width="195" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="E2" value="get_system_stats()&#xa;CPU% · RAM GB · Disk free"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;"
+          vertex="1" parent="E0">
+          <mxGeometry x="230" y="42" width="195" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="E3" value="ai_optimize()&#xa;analyze_process_list() via LLM&#xa;→ AI recommendations"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="E0">
+          <mxGeometry x="445" y="42" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="E4" value="kill_process(pid)&#xa;Protected system procs blocked"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;"
+          vertex="1" parent="E0">
+          <mxGeometry x="15" y="110" width="255" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="E5" value="find_process(name)&#xa;Match all PIDs → user selects which to kill"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;"
+          vertex="1" parent="E0">
+          <mxGeometry x="290" y="110" width="375" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- APP LAUNCHER DETAIL                    -->
+        <!-- ═══════════════════════════════════════ -->
+        <mxCell id="F0" value="App Launcher + Normalizer  (app_launcher.py  ·  app_normalizer.py)"
+          style="swimlane;fontStyle=1;align=center;startSize=32;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontColor=#1a237e;"
+          vertex="1" parent="1">
+          <mxGeometry x="730" y="1250" width="640" height="195" as="geometry" />
+        </mxCell>
+
+        <mxCell id="F1" value="App Name / Alias&#xa;&quot;browser&quot; · &quot;ide&quot; · &quot;music player&quot;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="F0">
+          <mxGeometry x="15" y="42" width="175" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="F2" value="App Normalizer&#xa;200+ aliases&#xa;difflib fuzzy match fallback"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="F0">
+          <mxGeometry x="210" y="42" width="190" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="F3" value="Path Resolution&#xa;winreg · shutil.which · glob&#xa;ms-settings: URIs"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="F0">
+          <mxGeometry x="420" y="42" width="205" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="F4" value="ThreadPoolExecutor.map()&#xa;All apps launched simultaneously"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;"
+          vertex="1" parent="F0">
+          <mxGeometry x="15" y="110" width="285" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="F5" value="Progress callback per app&#xa;✓ chrome (21ms)  ✓ vscode (34ms)  ✗ failed"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="F0">
+          <mxGeometry x="320" y="110" width="305" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="Fe1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="F1" target="F2" parent="F0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Fe2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="F2" target="F3" parent="F0"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="Fe3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="F3" target="F4" parent="F0"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

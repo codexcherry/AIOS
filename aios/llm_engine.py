@@ -106,11 +106,15 @@ Analyze user input and return ONLY valid JSON (no markdown, no explanation).
 
 JSON schema:
 {
-  "intent_type": "<one of: launch_apps|run_command|file_search|workflow|process_management|shell_command|conversation>",
+  "intent_type": "<one of: launch_apps|run_command|file_search|file_op|workflow|process_management|shell_command|conversation>",
   "apps": ["list of app names to open, e.g. chrome, vscode, spotify, notepad"],
   "commands": ["list of shell commands to execute"],
   "workflow_name": "<named workflow if mentioned, else null>",
   "file_query": "<semantic file search query if applicable, else null>",
+  "file_action": "<one of: create|read|update|append|delete|rename|list — only for file_op intents, else null>",
+  "filename": "<target filename including extension — only for file_op intents, else null>",
+  "content_desc": "<description of content to write/modify — only for file_op intents, else null>",
+  "new_filename": "<new filename for rename — only for file_op rename intents, else null>",
   "process_action": "<one of: status|optimize|kill|null>",
   "raw_goal": "<one sentence summary of what the user wants>",
   "url": "<full URL to open if user wants to visit a site or play media, else null. For music/video use YouTube search URL: https://www.youtube.com/results?search_query=QUERY. For web searches: https://www.google.com/search?q=QUERY>",
@@ -122,6 +126,7 @@ Rules:
 - If user says 'play X', 'search X in chrome', 'open X on youtube' → set url to YouTube search URL and add chrome to apps.
 - If user says 'google X' or 'search X' → set url to Google search URL and add chrome to apps.
 - URL-encode spaces as + in the url field.
+- If user wants to create/read/edit/update/modify/change/delete/rename a file → set intent_type to file_op, set file_action and filename accordingly, do NOT add apps.
 
 App name mappings (use these exact keys): chrome, vscode, spotify, notepad, terminal, explorer, task_manager, calculator, word, excel, powerpoint, vlc, discord, slack, telegram, whatsapp, obs, steam"""
 

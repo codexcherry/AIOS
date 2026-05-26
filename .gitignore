@@ -28,6 +28,8 @@ MANIFEST
 logs/
 aios.log*
 
+conference_101719.tex
+
 # ── Runtime / Generated Files ─────────────────────────────────────────────────
 hello.txt
 *.tmp

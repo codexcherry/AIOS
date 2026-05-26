@@ -37,12 +37,6 @@ def _build_logger() -> logging.Logger:
     ))
     logger.addHandler(fh)
 
-    # ── Console handler — WARNING+ only ──────────────────────────────────
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.WARNING)
-    ch.setFormatter(logging.Formatter("[AIOS %(levelname)s] %(message)s"))
-    logger.addHandler(ch)
-
     return logger
 
 

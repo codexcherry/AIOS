@@ -134,9 +134,16 @@ def _yt_direct(m):
 
 # ── Web Search ────────────────────────────────────────────────────────────────
 
-@_rule(r"^(?:google|search(?:\s+for)?|find|look\s+up|lookup)\s+(.+?)(?:\s+(?:on|in|via|using)\s+(?:google|chrome|browser))?$")
+@_rule(r"^(?:google|search(?:\s+for)?|find|look\s+up|lookup)\s+"
+        r"(?!(?:(?:the|my|a|this|that|for)\s+)?files?\b)"   # not a local file search
+        r"(.+?)(?:\s+(?:on|in|via|using)\s+(?:google|chrome|browser))?$")
 def _google_search(m):
     q = m.group(1).strip()
+    # Don't route to Google if the query targets the local machine
+    _local = {"my computer", "my pc", "my laptop", "my machine", "my drive",
+               "my folder", "my documents", "my desktop", "on my", "locally", "local"}
+    if any(kw in q.lower() for kw in _local):
+        return None, None, None   # fall through to LLM / file-op detection
     return _g(q), "chrome", f"Google: {q}"
 
 @_rule(r"^(?:search|find|look\s+up)\s+(.+?)\s+on\s+google$")
@@ -272,17 +279,20 @@ class RouterResult:
         "url", "browser", "description", "apps", "matched",
         "file_action", "filename", "content_desc", "new_filename",
         # Utility / assistant actions
-        "assistant_action",   # "greet" | "time" | "date" | "datetime" | "joke"
-        "note_content",       # text of note to save
-        "screenshot_filename",# filename for screenshot (may be None → auto)
-        "wiki_query",         # Wikipedia/person search query
-        "urls",               # list of URLs to open (multi-tab)
+        "assistant_action",    # "greet" | "time" | "date" | "datetime" | "joke"
+        "note_content",        # text of note to save
+        "screenshot_filename", # filename for screenshot (may be None → auto)
+        "wiki_query",          # Wikipedia/person search query
+        "urls",                # list of URLs to open (multi-tab)
+        # Local file search (bypasses LLM)
+        "file_search_query",   # semantic query for smart_search()
     )
 
     def __init__(self, url=None, browser=None, description=None, apps=None, matched=False,
                  file_action=None, filename=None, content_desc=None, new_filename=None,
                  assistant_action=None, note_content=None,
-                 screenshot_filename=None, wiki_query=None, urls=None):
+                 screenshot_filename=None, wiki_query=None, urls=None,
+                 file_search_query=None):
         self.url = url
         self.browser = browser
         self.description = description
@@ -297,6 +307,7 @@ class RouterResult:
         self.screenshot_filename = screenshot_filename
         self.wiki_query = wiki_query
         self.urls = urls or []
+        self.file_search_query = file_search_query
 
 
 # ── Utility / assistant rules (return RouterResult directly) ─────────────────
@@ -401,6 +412,37 @@ def _u_note2(m):
 @_util(r"^(?:show|list|view|display)\s+(?:my\s+)?notes?[?!.]*$")
 def _u_notes_list(m):
     return RouterResult(matched=True, assistant_action="notes_list", description="List notes")
+
+# ── File search (local filesystem — no LLM, no browser) ─────────────────────
+# Catches: "show/find/list/search (me/my) files (related to/about/named/for) X"
+#           "what files are about X", "search for files related to X"
+#           "/files X"  (slash command from dashboard chat)
+
+@_util(
+    r"^(?:"
+    r"(?:show|find|list|search(?:\s+for)?|give\s+me|get)\s+"
+    r"(?:me\s+)?(?:the\s+)?(?:my\s+)?(?:all\s+)?"
+    r"files?(?:\s+(?:related\s+to|about|for|named|called|containing|with|that\s+(?:are\s+)?(?:about|related\s+to)))?\s+"
+    r"|what\s+files?\s+(?:are\s+)?(?:related\s+to|about|contain|have)\s+"
+    r"|/files?\s+"
+    r")(.+)$"
+)
+def _u_file_search(m):
+    query = m.group(1).strip().lstrip("/")
+    return RouterResult(
+        matched=True,
+        file_search_query=query,
+        description=f"File search: {query}",
+    )
+
+# Bare "/files" with no query → recent files (handled in main.py as notes_list-style)
+@_util(r"^/files?$")
+def _u_file_search_recent(m):
+    return RouterResult(
+        matched=True,
+        file_search_query="",       # empty = list recent files
+        description="Recent files",
+    )
 
 # Wikipedia / person info
 @_util(r"^(?:who\s+(?:is|was)|tell\s+me\s+about|"
