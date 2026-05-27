@@ -68,7 +68,79 @@ AIOS:            You → state goal → AI orchestrates everything at once
               │    ~/.aios/rl/*.json                   │
               └────────────────────────────────────────┘
 ```
+### Detailed Component Flow
 
+```mermaid
+flowchart TD
+    INPUT(["🗣  Natural Language Input"])
+
+    INPUT --> S1
+
+    subgraph S1 ["⚡  Stage 1 — Rule-Based Router   ⟨ zero LLM · ~0 ms ⟩"]
+        direction TB
+        UR["url_router.py\n100 + compiled regex patterns"] --> MT{Pattern\nMatch?}
+        MT -->|Web / Knowledge Search| WS["Search Engines & Knowledge\nGoogle · Bing · DuckDuckGo\nWikipedia · Reddit · LinkedIn\narXiv · HuggingFace"]
+        MT -->|Developer & Media| DEV["Developer Portals & Media\nYouTube · GitHub · PyPI\nnpm · MDN · Kaggle · Colab\nLeetCode · Codepen · Replit"]
+        MT -->|Commerce & Utility| COM["Commerce & Utility\nAmazon · Flipkart\nGoogle Maps · Google News\n70 + direct site mappings"]
+        MT -->|App Name / Alias| AN["app_normalizer.py\n200 + alias table\ndifflib fuzzy match fallback"]
+        MT -->|No Match| NM(["→ Stage 2"])
+    end
+
+    subgraph S2 ["🧠  Stage 2 — LLM Intent Engine   ⟨ Ollama llama3.2:3b ⟩"]
+        direction TB
+        RLC["rl_memory.py\nJaccard similarity retrieval\nfew-shot correction pairs\ncompact user profile summary"]
+        PB["Prompt Builder\nsystem schema  +  RL context\n+  user profile  +  utterance"]
+        LE["llm_engine.py\nparse_intent\nJSON schema validation\nexponential-backoff retry × 3"]
+        IR[["Intent Record\n{ action · targets[ ] · params{ } · confidence }"]]
+        RLC --> PB --> LE --> IR
+    end
+
+    NM --> RLC
+
+    IR -->|launch_apps| LA["app_launcher.py\nDynamic path resolution\n① shutil.which  PATH search\n② OS registry  traversal\n③ glob  versioned dirs\n④ URI scheme  delegation"]
+    IR -->|file_op| FO["file_ops.py\nLLM-powered CRUD\ncreate · read · update\nappend · delete · rename · list"]
+    IR -->|file_search| FM["file_manager.py\n3-stage semantic search\n① type keyword detection\n② parallel filesystem scan\n③ LLM semantic re-ranking"]
+    IR -->|workflow| WF["workflow_engine.py\nDAG workflow orchestrator\ntask_executor.py\nparallel-group dispatch"]
+    IR -->|shell_command| SH["ai_shell.py\nNL → shell translation\nplatform-aware command gen\ndangerous pattern guard"]
+    IR -->|process_mgmt| PM["process_manager.py\npsutil live monitoring\nAI optimisation advice\nprotected-process guard"]
+    IR -->|conversation| FT["features/\nassistant.py  ·  notes.py\nscreenshot.py\nWikipedia · time · jokes"]
+
+    LA --> PE
+    WF --> PE
+    AN --> PE
+
+    subgraph PE ["🔀  Parallel Execution Layer   ⟨ ThreadPoolExecutor · 8 workers ⟩"]
+        TP["Concurrent sub-task dispatch\nper-target result aggregation\nwall-clock timing per task"]
+    end
+
+    PE --> CM
+    PE --> RM
+
+    subgraph MEM ["💾  Persistent Memory Layer"]
+        direction LR
+        CM["context_memory.py\n~/.aios/memory/\nsessions.json\nworkflows.json\nfile_index.json\ncontext.json"]
+        RM["rl_memory.py\n~/.aios/rl/\ncorrections.json\nfrequency.json\nuser_profile.json"]
+    end
+
+    WS --> BOUT(["🌐  Browser / URL Action"])
+    DEV --> BOUT
+    COM --> BOUT
+
+    CM -.->|"session context injection"| PB
+    RM -.->|"RL few-shot injection"| RLC
+
+    classDef s1style fill:#1e1e1e,stroke:#555555,stroke-width:2px,color:#e8e8e8
+    classDef s2style fill:#252525,stroke:#666666,stroke-width:2px,color:#e8e8e8
+    classDef modstyle fill:#2a2a2a,stroke:#505050,stroke-width:1.5px,color:#e8e8e8
+    classDef execstyle fill:#1a1a1a,stroke:#444444,stroke-width:2px,color:#e8e8e8
+    classDef memstyle fill:#212121,stroke:#484848,stroke-width:1.5px,color:#e8e8e8
+
+    class S1 s1style
+    class S2 s2style
+    class PE execstyle
+    class MEM memstyle
+    class LA,FO,FM,WF,SH,PM,FT modstyle
+```
 ---
 
 ## Features
