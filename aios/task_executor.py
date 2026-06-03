@@ -10,6 +10,11 @@ from typing import Callable, Optional
 from aios.app_launcher import launch_apps_parallel, _launch_single_app
 from aios.context_memory import memory
 
+# Shared executor — created once, reused for every parallel group.
+# Using 8 workers matches the parallel app-launch pool size and covers
+# typical 2–4 app launch + command patterns comfortably.
+_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="aios-task")
+
 
 class StepResult:
     def __init__(self, step_id: int, action: str, target: str, status: str, output: str = "", error: str = ""):
@@ -107,6 +112,18 @@ class WorkflowExecutor:
         """
         steps = workflow.get("steps", [])
         workflow_name = workflow.get("workflow_name", "unnamed")
+
+        if not steps:
+            self.progress_callback(f"[AIOS] Workflow '{workflow_name}' has no steps to execute.")
+            return {
+                "workflow_name": workflow_name,
+                "total_steps": 0,
+                "success_count": 0,
+                "fail_count": 0,
+                "total_time_ms": 0,
+                "results": [],
+                "error": workflow.get("_raw", "Workflow has no steps"),
+            }
         
         self.progress_callback(f"\n[AIOS] Executing workflow: {workflow_name}")
         self.progress_callback(f"[AIOS] {len(steps)} steps planned\n")
@@ -135,19 +152,18 @@ class WorkflowExecutor:
                     status_icon = "✓" if result.status == "success" else "✗"
                     self.progress_callback(f"    {status_icon} {result.status} ({result.time_ms}ms)")
             else:
-                # Parallel group
+                # Parallel group — use the shared executor
                 self.progress_callback(f"  ⚡ Parallel group {group_id}: {len(group_steps)} steps simultaneously")
-                with ThreadPoolExecutor(max_workers=len(group_steps)) as executor:
-                    futures = {executor.submit(_execute_step, s): s for s in group_steps}
-                    for future in as_completed(futures):
-                        step = futures[future]
-                        result = future.result()
-                        all_results.append(result)
-                        status_icon = "✓" if result.status == "success" else "✗"
-                        self.progress_callback(
-                            f"    {status_icon} [{result.step_id}] {step.get('description', result.target)} "
-                            f"({result.time_ms}ms)"
-                        )
+                futures = {_EXECUTOR.submit(_execute_step, s): s for s in group_steps}
+                for future in as_completed(futures):
+                    step = futures[future]
+                    result = future.result()
+                    all_results.append(result)
+                    status_icon = "✓" if result.status == "success" else "✗"
+                    self.progress_callback(
+                        f"    {status_icon} [{result.step_id}] {step.get('description', result.target)} "
+                        f"({result.time_ms}ms)"
+                    )
 
         total_time = round((time.time() - t_start) * 1000)
         success_count = sum(1 for r in all_results if r.status == "success")

@@ -4,6 +4,7 @@ Intent-driven terminal. User describes what they want, AI figures out the comman
 Cross-platform: Windows and Linux.
 """
 import re
+import shlex
 import subprocess
 import os
 import sys
@@ -114,8 +115,11 @@ class AIShell:
         if nl in DIRECT_COMMANDS:
             commands = [DIRECT_COMMANDS[nl]]
         elif nl.startswith("cd ") or nl.startswith("go to "):
-            target = nl.replace("cd ", "").replace("go to ", "").strip()
-            commands = [f"cd /d {target}" if IS_WINDOWS else f"cd '{target}'"]
+            target = nl.replace("cd ", "").replace("go to ", "").strip().strip("'\"")
+            if IS_WINDOWS:
+                commands = [f'cd /d "{target}"']
+            else:
+                commands = [f"cd '{target}'"]
         else:
             self.progress(f"  [Shell] Translating: '{natural_input}'...")
             commands = translate_to_shell(natural_input, os_type=self._os_type)
@@ -155,8 +159,19 @@ class AIShell:
         # Handle 'cd' to track working directory
         cd_prefix = ("cd /d " if IS_WINDOWS else "cd ") if IS_WINDOWS else "cd "
         if cmd_stripped.lower().startswith("cd "):
-            parts   = cmd_stripped.split(None, 2 if IS_WINDOWS else 1)
-            target  = parts[-1].strip().strip("'\"")
+            # Use shlex to correctly handle paths with spaces
+            try:
+                parts = shlex.split(cmd_stripped)
+            except ValueError:
+                parts = cmd_stripped.split()
+            # Windows: "cd /d path" has target at index 2; otherwise index 1
+            if IS_WINDOWS and len(parts) >= 3 and parts[1].lower() == "/d":
+                target = parts[2]
+            elif len(parts) >= 2:
+                target = parts[1]
+            else:
+                target = self.cwd
+            target = target.strip("'\"")
             if not os.path.isabs(target):
                 target = os.path.join(self.cwd, target)
             target = os.path.normpath(target)

@@ -39,13 +39,11 @@ from aios.features.assistant import greet_user, tell_time, tell_date, tell_datet
 from aios.features.screenshot import take_screenshot
 from aios.features.notes import add_note, list_notes
 from aios.rl_memory import rl
-from aios.voice import voice
 from aios.daemons import start_all as _start_all_daemons
 
 console = Console() if RICH else None
 
 # ── Global mutable state ──────────────────────────────────────────────────────
-_VOICE_MODE: bool = cfg.get("voice", "enabled", False)
 _daemons: dict = {}
 
 
@@ -57,14 +55,6 @@ def cprint(msg: str, style: str = ""):
     else:
         print(msg)
 
-
-def _tts_speak(text: str) -> None:
-    """Speak `text` via TTS only when voice mode is active."""
-    global _VOICE_MODE
-    if _VOICE_MODE and voice.tts_available:
-        clean = re.sub(r'\[/?[^\]]+\]', '', text).strip()  # strip Rich markup
-        if clean:
-            voice.speak(clean)
 
 def print_banner():
     banner = r"""
@@ -106,6 +96,7 @@ def print_help():
     /joke           → Tell a joke
     /memory         → Show context memory
     /context        → Show session context
+    /trash          → List & restore soft-deleted files
     /kill <pid>     → Kill a process by PID
     /help           → This help screen
     /clear          → Clear screen
@@ -355,28 +346,23 @@ def handle_assistant(action: str, payload: dict = None):
     if action == "greet":
         msg = greet_user()
         cprint(f"\n[bold cyan]AIOS:[/bold cyan] {msg}\n")
-        _tts_speak(msg)
 
     elif action == "time":
         msg = tell_time()
         cprint(f"\n[bold cyan]AIOS:[/bold cyan] {msg}\n")
-        _tts_speak(msg)
 
     elif action == "date":
         msg = tell_date()
         cprint(f"\n[bold cyan]AIOS:[/bold cyan] {msg}\n")
-        _tts_speak(msg)
 
     elif action == "datetime":
         msg = tell_datetime()
         cprint(f"\n[bold cyan]AIOS:[/bold cyan] {msg}\n")
-        _tts_speak(msg)
 
     elif action == "joke":
         cprint("[dim]Thinking of a joke...[/dim]")
         joke = tell_joke()
         cprint(f"\n[bold cyan]AIOS:[/bold cyan] {joke}\n")
-        _tts_speak(joke)
 
     elif action == "screenshot":
         fname = payload.get("filename")
@@ -647,7 +633,8 @@ def route_intent(user_input: str):
 
     # ── Stage 2: LLM intent parser ────────────────────────────────────────────
     cprint("[dim]Parsing intent...[/dim]")
-    intent = parse_intent(user_input, context=ctx)
+    rl_ctx = rl.build_prompt_context(user_input)
+    intent = parse_intent(user_input, context=ctx, rl_context=rl_ctx)
 
     intent_type = intent.get("intent_type", "conversation")
     apps = intent.get("apps", [])
@@ -725,8 +712,72 @@ def route_intent(user_input: str):
         cprint("[dim]Thinking...[/dim]")
         response = chat_response(user_input, context=ctx)
         cprint(f"\n[bold]AIOS:[/bold] {response}\n")
-        _tts_speak(response)
         rl.record_interaction(user_input, "conversation", "chat")
+
+
+def _handle_trash(action: str = ""):
+    """List soft-deleted files in ~/.aios/trash/ and optionally restore one."""
+    from aios.file_ops import _TRASH_DIR
+    import shutil
+
+    if not _TRASH_DIR.exists() or not any(_TRASH_DIR.iterdir()):
+        cprint("[yellow]Trash is empty.[/yellow]")
+        return
+
+    items = sorted(_TRASH_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+
+    if RICH:
+        from rich.table import Table
+        tbl = Table(title="Trash (~/.aios/trash/)", show_lines=True)
+        tbl.add_column("#", style="dim", width=4)
+        tbl.add_column("Name", style="cyan")
+        tbl.add_column("Size")
+        tbl.add_column("Deleted", style="dim")
+        for i, p in enumerate(items, 1):
+            try:
+                stat = p.stat()
+                size = f"{stat.st_size // 1024}KB" if stat.st_size > 1024 else f"{stat.st_size}B"
+                from datetime import datetime
+                deleted = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+            except OSError:
+                size, deleted = "?", "?"
+            tbl.add_row(str(i), p.name, size, deleted)
+        console.print(tbl)
+    else:
+        for i, p in enumerate(items, 1):
+            print(f"  {i}. {p.name}")
+
+    cprint("[dim]Enter number to restore, 'all' to restore all, or Enter to cancel:[/dim]")
+    try:
+        choice = input("  > ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return
+
+    if not choice:
+        return
+
+    def _restore(p: Path):
+        # Restore to cwd, stripping the timestamp suffix from the name
+        stem = p.stem  # e.g. "hello_1717000000"
+        # Remove trailing _<timestamp> if present
+        import re
+        clean_stem = re.sub(r'_\d{9,10}$', '', stem)
+        dest = Path.cwd() / (clean_stem + p.suffix)
+        try:
+            shutil.move(str(p), str(dest))
+            cprint(f"[green]✓ Restored:[/green] {dest}")
+        except Exception as exc:
+            cprint(f"[red]✗ Could not restore {p.name}: {exc}[/red]")
+
+    if choice == "all":
+        for p in items:
+            _restore(p)
+    elif choice.isdigit():
+        idx = int(choice) - 1
+        if 0 <= idx < len(items):
+            _restore(items[idx])
+        else:
+            cprint("[red]Invalid number.[/red]")
 
 
 def _run_commands(commands: list):
@@ -758,18 +809,7 @@ def _display_shell_result(result: dict):
 
 # ── Main REPL ────────────────────────────────────────────────────────────────
 
-def _start_voice_wake_listener() -> None:
-    """Start background wake-word listener and route detected speech through AIOS."""
-    if voice.start_wake_listener(callback=route_intent):
-        wake = cfg.get("voice", "wake_word", "jarvis").capitalize()
-        cprint(f"[green]🎙 Voice wake-word active — say '{wake}' to trigger AIOS[/green]")
-        log.info("Wake-word listener started")
-    else:
-        cprint("[yellow]⚠ Voice wake-word unavailable — microphone or SpeechRecognition missing[/yellow]")
-
-
 def main():
-    global _VOICE_MODE
     print_banner()
     memory.start_session()
 
@@ -783,9 +823,6 @@ def main():
         cprint("[yellow]⚠  Ollama not running — AI features disabled until you run:[/yellow] [bold]ollama serve[/bold]")
         log.warning("Ollama not running at startup")
 
-    # ── Startup: voice wake listener ─────────────────────────────────────────
-    if _VOICE_MODE:
-        _start_voice_wake_listener()
 
     # ── Startup: background daemons ──────────────────────────────────────────
     global _daemons
@@ -802,14 +839,12 @@ def main():
 
     while True:
         try:
-            prompt_suffix = " [dim][🎙][/dim]" if _VOICE_MODE else ""
             if RICH:
-                user_input = Prompt.ask(f"[bold cyan]AIOS[/bold cyan]{prompt_suffix}").strip()
+                user_input = Prompt.ask("[bold cyan]AIOS[/bold cyan]").strip()
             else:
                 user_input = input("AIOS> ").strip()
         except (EOFError, KeyboardInterrupt):
             cprint("\n[yellow]Exiting AIOS. Goodbye.[/yellow]")
-            voice.stop_wake_listener()
             memory.end_session()
             sys.exit(0)
 
@@ -821,23 +856,12 @@ def main():
 
         if lower in ("/exit", "/quit", "exit", "quit", "bye"):
             cprint("[yellow]Goodbye![/yellow]")
-            _tts_speak("Goodbye!")
-            voice.stop_wake_listener()
             memory.end_session()
             break
 
         elif lower == "/help":
             print_help()
 
-        elif lower == "/voice":
-            _VOICE_MODE = not _VOICE_MODE
-            cfg.save_user_config({"voice": {"enabled": _VOICE_MODE}})
-            if _VOICE_MODE:
-                cprint("[green]🎙 Voice mode ON[/green]")
-                _start_voice_wake_listener()
-            else:
-                cprint("[yellow]🔇 Voice mode OFF[/yellow]")
-                voice.stop_wake_listener()
 
         elif lower.startswith("/correct"):
             # RL: user tells AIOS the last command was wrong
@@ -964,6 +988,9 @@ def main():
             ctx = memory.get_context_summary()
             import json
             cprint(json.dumps(ctx, indent=2))
+
+        elif lower == "/trash" or lower.startswith("/trash "):
+            _handle_trash(user_input[7:].strip() if len(user_input) > 7 else "")
 
         elif lower.startswith("/kill "):
             pid_str = user_input[6:].strip()

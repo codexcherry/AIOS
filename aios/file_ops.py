@@ -5,23 +5,45 @@ Uses LLM to generate/modify file content intelligently.
 """
 import os
 import re
+import shutil
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 
+from aios.logger import log
 from aios.llm_engine import generate_file_content
 from aios.context_memory import memory
 
+# Trash directory for soft-deleted files
+_TRASH_DIR = Path.home() / ".aios" / "trash"
 
-def _resolve_path(filename: str) -> Path:
+
+def _resolve_path(filename: str, base: Path = None) -> Path:
     """
     Resolve filename to absolute path.
     If already absolute, use as-is.
-    Otherwise, resolve relative to cwd.
+    Otherwise resolve relative to *base* (defaults to cwd).
+    Raises ValueError if the resolved path escapes the base directory
+    (path traversal guard).
     """
     p = Path(filename)
     if p.is_absolute():
         return p
-    return Path.cwd() / p
+    resolved = (base or Path.cwd()) / p
+    # Normalise to remove any '..' components
+    try:
+        resolved = resolved.resolve(strict=False)
+    except Exception:
+        pass
+    # Guard: make sure the path doesn't escape cwd via '..' sequences
+    base_resolved = (base or Path.cwd()).resolve()
+    try:
+        resolved.relative_to(base_resolved)
+    except ValueError:
+        raise ValueError(
+            f"Path traversal detected: '{filename}' escapes the working directory."
+        )
+    return resolved
 
 
 def _confirm(prompt: str) -> bool:
@@ -31,6 +53,18 @@ def _confirm(prompt: str) -> bool:
         return ans in ("y", "yes")
     except (EOFError, KeyboardInterrupt):
         return False
+
+
+def _resolve_path_from_args(filename: str, cwd: str = None) -> Path:
+    """
+    Single point of path resolution used by all CRUD operations.
+    If *cwd* is given, resolve *filename* relative to it (unless already absolute).
+    Otherwise delegate to _resolve_path() which uses the process cwd.
+    """
+    if cwd:
+        p = Path(filename)
+        return p if p.is_absolute() else Path(cwd) / p
+    return _resolve_path(filename)
 
 
 # ── CREATE ────────────────────────────────────────────────────────────────────
@@ -43,10 +77,7 @@ def create_file(filename: str, description: str = "", content: str = None,
     - If description is provided, generate content via LLM.
     - If neither, create empty file.
     """
-    if cwd:
-        path = Path(cwd) / filename if not Path(filename).is_absolute() else Path(filename)
-    else:
-        path = _resolve_path(filename)
+    path = _resolve_path_from_args(filename, cwd)
 
     # Check existence
     if path.exists() and not overwrite:
@@ -89,10 +120,7 @@ def create_file(filename: str, description: str = "", content: str = None,
 
 def read_file(filename: str, cwd: str = None) -> dict:
     """Read and return file content."""
-    if cwd:
-        path = Path(cwd) / filename if not Path(filename).is_absolute() else Path(filename)
-    else:
-        path = _resolve_path(filename)
+    path = _resolve_path_from_args(filename, cwd)
 
     # Try cwd and common locations if not found
     if not path.exists():
@@ -129,10 +157,7 @@ def update_file(filename: str, instruction: str, cwd: str = None) -> dict:
     Update existing file content using LLM.
     LLM receives existing content + instruction → generates new content.
     """
-    if cwd:
-        path = Path(cwd) / filename if not Path(filename).is_absolute() else Path(filename)
-    else:
-        path = _resolve_path(filename)
+    path = _resolve_path_from_args(filename, cwd)
 
     if not path.exists():
         # File doesn't exist — offer to create
@@ -146,6 +171,14 @@ def update_file(filename: str, instruction: str, cwd: str = None) -> dict:
 
     existing = path.read_text(encoding="utf-8", errors="replace")
     updated = generate_file_content(instruction, filename, existing_content=existing)
+
+    if updated.startswith("ERROR:"):
+        return {
+            "success": False,
+            "action": "update",
+            "path": str(path),
+            "error": f"LLM failed to generate content: {updated}",
+        }
 
     path.write_text(updated, encoding="utf-8")
     memory.log_command(f"update {filename}", instruction[:60])
@@ -164,16 +197,21 @@ def update_file(filename: str, instruction: str, cwd: str = None) -> dict:
 
 def append_file(filename: str, description: str, cwd: str = None) -> dict:
     """Append new content to end of file."""
-    if cwd:
-        path = Path(cwd) / filename if not Path(filename).is_absolute() else Path(filename)
-    else:
-        path = _resolve_path(filename)
+    path = _resolve_path_from_args(filename, cwd)
 
     if not path.exists():
         return create_file(filename, description, cwd=cwd)
 
     existing = path.read_text(encoding="utf-8", errors="replace")
     new_content = generate_file_content(f"Generate ONLY the new code/text to append: {description}", filename)
+
+    if new_content.startswith("ERROR:"):
+        return {
+            "success": False,
+            "action": "append",
+            "path": str(path),
+            "error": f"LLM failed to generate content: {new_content}",
+        }
 
     with path.open("a", encoding="utf-8") as f:
         f.write("\n" + new_content)
@@ -193,10 +231,7 @@ def append_file(filename: str, description: str, cwd: str = None) -> dict:
 
 def delete_file(filename: str, confirmed: bool = False, cwd: str = None) -> dict:
     """Delete a file. Requires confirmation unless confirmed=True."""
-    if cwd:
-        path = Path(cwd) / filename if not Path(filename).is_absolute() else Path(filename)
-    else:
-        path = _resolve_path(filename)
+    path = _resolve_path_from_args(filename, cwd)
 
     if not path.exists():
         return {"success": False, "action": "delete", "path": str(path),
@@ -211,19 +246,31 @@ def delete_file(filename: str, confirmed: bool = False, cwd: str = None) -> dict
             "message": f"Confirm delete: {path.name} ({path.stat().st_size} bytes)?",
         }
 
-    path.unlink()
-    memory.log_command(f"delete {filename}", "deleted")
-    return {"success": True, "action": "delete", "path": str(path), "filename": path.name}
+    # Soft-delete: move to ~/.aios/trash/ instead of permanent removal
+    _TRASH_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    trash_dest = _TRASH_DIR / f"{path.stem}_{ts}{path.suffix}"
+    try:
+        shutil.move(str(path), str(trash_dest))
+        log.info("file_ops: soft-deleted %s → %s", path, trash_dest)
+    except Exception as exc:
+        log.error("file_ops: could not move to trash %s: %s", path, exc)
+        return {"success": False, "action": "delete", "path": str(path), "error": str(exc)}
+    memory.log_command(f"delete {filename}", f"moved to trash: {trash_dest.name}")
+    return {
+        "success": True,
+        "action": "delete",
+        "path": str(path),
+        "filename": path.name,
+        "trash_path": str(trash_dest),
+    }
 
 
 # ── RENAME ────────────────────────────────────────────────────────────────────
 
 def rename_file(filename: str, new_filename: str, cwd: str = None) -> dict:
     """Rename a file."""
-    if cwd:
-        path = Path(cwd) / filename if not Path(filename).is_absolute() else Path(filename)
-    else:
-        path = _resolve_path(filename)
+    path = _resolve_path_from_args(filename, cwd)
 
     if not path.exists():
         return {"success": False, "action": "rename", "path": str(path),
@@ -285,7 +332,7 @@ def dispatch(action: str, filename: str = None, description: str = None,
         if not filename:
             return {"success": False, "error": "No filename specified"}
         # If file doesn't exist, create it
-        path = Path(cwd or "") / filename if cwd else _resolve_path(filename)
+        path = _resolve_path_from_args(filename, cwd)
         if not path.exists() and description:
             return create_file(filename, description, cwd=cwd)
         return update_file(filename, description or "", cwd=cwd)

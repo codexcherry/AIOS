@@ -12,6 +12,7 @@ How it works (in-context learning, no GPU training needed):
 Effect: LLM parse accuracy improves for THIS user's vocabulary over time.
 """
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,8 @@ _RL_DIR.mkdir(parents=True, exist_ok=True)
 _CORRECTIONS_FILE = _RL_DIR / "corrections.json"
 _FREQ_FILE        = _RL_DIR / "frequency.json"
 _PROFILE_FILE     = _RL_DIR / "user_profile.json"
+
+_rl_write_lock = threading.Lock()
 
 
 # ── Persistence helpers ───────────────────────────────────────────────────────
@@ -40,14 +43,19 @@ def _load(path: Path, default):
 
 
 def _save(path: Path, data) -> None:
-    """Atomic write — write to .tmp then rename."""
+    """Atomic write — write to .tmp then rename. Thread-safe via module lock."""
     tmp = path.with_suffix(".tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        tmp.replace(path)
-    except Exception as e:
-        log.error("RL: could not save %s: %s", path.name, e)
+    with _rl_write_lock:
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            tmp.replace(path)
+        except Exception as e:
+            log.error("RL: could not save %s: %s", path.name, e)
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 # ── Similarity (bag-of-words, zero dependencies) ──────────────────────────────
@@ -77,6 +85,7 @@ class RLMemory:
         self._freq: dict        = _load(_FREQ_FILE, {})
         self._profile: dict     = _load(_PROFILE_FILE, {})
         self._interaction_count = sum(self._freq.values())
+        self._profile_lock      = threading.Lock()
 
     # ── Recording ─────────────────────────────────────────────────────────
 
@@ -169,7 +178,8 @@ class RLMemory:
 
     def get_profile(self) -> str:
         """Return the cached user profile summary (for prompt enrichment)."""
-        return self._profile.get("summary", "")
+        with self._profile_lock:
+            return self._profile.get("summary", "")
 
     def build_prompt_context(self, user_input: str) -> str:
         """
@@ -209,8 +219,10 @@ class RLMemory:
             )
             summary = _call_ollama(summary_input, system=system, temperature=0.3)
             if summary and not summary.startswith("ERROR"):
-                self._profile = {"summary": summary, "updated_ts": time.time()}
-                _save(_PROFILE_FILE, self._profile)
+                new_profile = {"summary": summary, "updated_ts": time.time()}
+                with self._profile_lock:
+                    self._profile = new_profile
+                _save(_PROFILE_FILE, new_profile)
                 log.info("RL: user profile rebuilt (%d chars)", len(summary))
         except Exception as e:
             log.warning("RL: profile rebuild failed: %s", e)

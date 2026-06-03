@@ -5,10 +5,13 @@ Uses JSON for simplicity (no external DB needed for POC).
 """
 import json
 import os
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+from aios.logger import log
 
 MEMORY_DIR = Path.home() / ".aios" / "memory"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -19,21 +22,39 @@ FILE_INDEX_FILE = MEMORY_DIR / "file_index.json"
 CONTEXT_FILE = MEMORY_DIR / "context.json"
 
 
+_write_lock = threading.Lock()
+
+
 def _load_json(path: Path, default=None):
     if default is None:
         default = {}
     if path.exists():
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except json.JSONDecodeError as exc:
+            log.warning("context_memory: corrupt JSON in %s (%s) — starting fresh", path.name, exc)
+            return default
+        except Exception as exc:
+            log.warning("context_memory: could not load %s: %s", path.name, exc)
             return default
     return default
 
 
-def _save_json(path: Path, data):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+def _save_json(path: Path, data) -> None:
+    """Atomic write: write to .tmp then rename — prevents partial-write corruption."""
+    tmp = path.with_suffix(".tmp")
+    with _write_lock:
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+            tmp.replace(path)
+        except Exception as exc:
+            log.error("context_memory: failed to save %s: %s", path.name, exc)
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 class ContextMemory:

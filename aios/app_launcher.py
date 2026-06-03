@@ -4,6 +4,7 @@ Cross-platform: Windows 10/11 + Linux (Arch, Ubuntu, Debian, Fedora, etc.)
 All paths are resolved dynamically — no hardcoded user/machine paths.
 """
 import os
+import re
 import sys
 import subprocess
 import shutil
@@ -31,10 +32,17 @@ def _program_files() -> Path:
 def _program_files_x86() -> Path:
     return Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
 
+def _natural_sort_key(s: str) -> list:
+    """Sort key that orders numeric substrings by value, so 1.0.10 > 1.0.9."""
+    return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', s)]
+
+
 def _glob_first(pattern: str) -> Optional[str]:
-    """Return first glob match or None."""
+    """Return the naturally-latest glob match or None."""
     matches = glob.glob(pattern, recursive=False)
-    return sorted(matches)[-1] if matches else None  # latest version last
+    if not matches:
+        return None
+    return sorted(matches, key=_natural_sort_key)[-1]
 
 
 def _registry_lookup(key_path: str, value_name: str = "") -> Optional[str]:

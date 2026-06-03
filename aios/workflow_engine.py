@@ -98,13 +98,23 @@ class WorkflowEngine:
         ctx = context or memory.get_context_summary()
         
         plan = generate_workflow_plan(goal, context=ctx)
-        
-        if not plan.get("steps"):
-            self.progress("[Workflow] LLM couldn't generate steps. Using basic app open.")
-            # Fallback: try to extract apps from goal
+
+        # Validate: plan must be a dict with at least one well-formed step
+        steps = plan.get("steps") if isinstance(plan, dict) else None
+        if not steps or not isinstance(steps, list):
+            self.progress(f"[Workflow] LLM couldn't generate a valid plan for: '{goal}'")
             return {"error": "Could not generate workflow plan", "goal": goal}
-        
-        self.progress(f"[Workflow] Plan: {plan.get('description', 'N/A')}")
+
+        valid_steps = [
+            s for s in steps
+            if isinstance(s, dict) and s.get("action") and s.get("target") is not None
+        ]
+        if not valid_steps:
+            self.progress("[Workflow] LLM plan contained no executable steps.")
+            return {"error": "Workflow plan has no valid steps", "goal": goal}
+
+        plan["steps"] = valid_steps
+        self.progress(f"[Workflow] Plan: {plan.get('description', 'N/A')} ({len(valid_steps)} steps)")
         return self.executor.execute(plan)
 
     def list_available(self) -> list:

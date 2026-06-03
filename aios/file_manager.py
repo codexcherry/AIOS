@@ -13,18 +13,22 @@ from datetime import datetime, timedelta
 from typing import Optional
 from aios.context_memory import memory
 from aios.llm_engine import semantic_file_match, extract_search_keywords
+from aios.logger import log
 
-# Default search roots — all dynamic, no hardcoded user paths
+# Default search roots — only include paths that actually exist
 DEFAULT_SEARCH_ROOTS = [
-    Path.home() / "Documents",
-    Path.home() / "Desktop",
-    Path.home() / "Downloads",
-    Path.home() / "Projects",
-    Path.home(),                         # home root
-    Path(os.environ.get("USERPROFILE", Path.home())),
+    p for p in [
+        Path.home() / "Documents",
+        Path.home() / "Desktop",
+        Path.home() / "Downloads",
+        Path.home() / "Projects",
+        Path.home(),
+        Path(os.environ.get("USERPROFILE", str(Path.home()))),
+    ]
+    if p.exists()
 ]
 
-# Add current working directory and script's drive root dynamically
+# Add current working directory if not already present
 _cwd = Path.cwd()
 if _cwd not in DEFAULT_SEARCH_ROOTS:
     DEFAULT_SEARCH_ROOTS.append(_cwd)
@@ -167,15 +171,17 @@ def smart_search(query: str, max_results: int = 10, roots: list = None) -> list:
 
         # Collect scan results as they complete
         for fut in as_completed(scan_futures):
+            root = scan_futures[fut]
             try:
                 all_files.extend(fut.result())
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("file_manager: scan failed for %s: %s", root, exc)
 
         # Get LLM keywords (may already be done by now)
         try:
             keywords = kw_future.result(timeout=10)
-        except Exception:
+        except Exception as exc:
+            log.warning("file_manager: keyword extraction failed: %s", exc)
             keywords = []
 
     # Include keywords from the raw query as fallback
@@ -184,9 +190,22 @@ def smart_search(query: str, max_results: int = 10, roots: list = None) -> list:
     raw_keywords = [w for w in query.lower().split() if w not in _SKIP and len(w) > 2]
     combined_keywords = list(dict.fromkeys(keywords + raw_keywords))  # deduplicate, preserve order
 
-    # Also add memory-indexed files
-    indexed = memory.search_files(query)
-    all_files = list(indexed) + all_files
+    # Also add memory-indexed files.
+    # Normalise each entry so they have the same keys as scanned files.
+    indexed_raw = memory.search_files(query)
+    indexed = []
+    for entry in indexed_raw:
+        p = Path(entry.get("path", ""))
+        indexed.append({
+            "path":     entry.get("path", ""),
+            "name":     entry.get("name", p.name),
+            "stem":     entry.get("stem", p.stem),
+            "suffix":   entry.get("suffix", p.suffix.lower()),
+            "size":     entry.get("size", 0),
+            "modified": entry.get("modified", ""),
+            "parent":   entry.get("parent", str(p.parent)),
+        })
+    all_files = indexed + all_files
 
     # Deduplicate by path
     seen: set = set()
@@ -208,7 +227,7 @@ def smart_search(query: str, max_results: int = 10, roots: list = None) -> list:
 
     # LLM semantic ranking (use file names/paths for ranking)
     file_descriptions = [
-        f"{f['name']} | {f['parent']} | modified: {f.get('modified', 'unknown')[:10]}"
+        f"{f.get('name', '')} | {f.get('parent', '')} | modified: {f.get('modified', 'unknown')[:10]}"
         for f in candidates
     ]
 

@@ -50,14 +50,21 @@ def get_process_list(top_n: int = 20, sort_by: str = "memory") -> list:
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
 
-    # Second pass for accurate CPU (psutil needs two samples)
+    # Second pass for accurate CPU (psutil needs two samples).
+    # Processes may exit between the two passes — track which PIDs are gone.
     time.sleep(0.3)
+    dead_pids: set = set()
     for p in procs:
         try:
             proc = psutil.Process(p["pid"])
             p["cpu_percent"] = round(proc.cpu_percent(interval=None), 1)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            dead_pids.add(p["pid"])
         except Exception:
             pass
+
+    if dead_pids:
+        procs = [p for p in procs if p["pid"] not in dead_pids]
 
     sort_key = "memory_mb" if sort_by == "memory" else "cpu_percent"
     procs.sort(key=lambda x: x[sort_key], reverse=True)

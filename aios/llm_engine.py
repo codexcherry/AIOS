@@ -4,7 +4,9 @@ All intent parsing, command translation, and reasoning goes through here.
 """
 import json
 import time
+import threading
 import requests
+from functools import lru_cache
 from typing import Optional
 
 from aios.logger import log
@@ -86,19 +88,14 @@ def _call_ollama(prompt: str, system: str = "", temperature: float = 0.2) -> str
     return f"ERROR: {last_error}"
 
 
-def parse_intent(user_input: str, context: dict = None) -> dict:
+def parse_intent(user_input: str, context: dict = None, rl_context: str = "") -> dict:
     """
     Parse user natural language input into a structured intent object.
-    Injects RL user-adaptation context (past corrections + profile) into the prompt.
+    Accepts an optional *rl_context* string (past corrections + profile summary)
+    to inject as few-shot examples.  Passing it as a parameter avoids the
+    circular import that previously existed between llm_engine ↔ rl_memory.
     Returns dict with: intent_type, apps, commands, workflow, raw_goal
     """
-    # ── RL context injection ──────────────────────────────────────────────
-    rl_context = ""
-    try:
-        from aios.rl_memory import rl   # late import to avoid circular
-        rl_context = rl.build_prompt_context(user_input)
-    except Exception:
-        pass
 
     ctx_str = json.dumps(context, indent=2) if context else "{}"
     base_system = """You are the intent parser for AIOS, an AI-native operating environment.
@@ -164,13 +161,17 @@ App name mappings (use these exact keys): chrome, vscode, spotify, notepad, term
     }
 
 
-def translate_to_shell(natural_command: str, os_type: str = "windows") -> list[str]:
-    """Translate natural language to shell commands."""
+@lru_cache(maxsize=128)
+def translate_to_shell(natural_command: str, os_type: str = "windows") -> list:
+    """Translate natural language to shell commands. Returns [] on LLM failure."""
     system = f"""You are an expert {os_type} system administrator.
 Convert the user's natural language request into exact shell commands.
 Return ONLY a JSON array of command strings. No explanation. No markdown.
 Example: ["mkdir myproject", "cd myproject", "python -m venv venv"]"""
     raw = _call_ollama(natural_command, system=system, temperature=0.1)
+    if raw.startswith("ERROR:"):
+        log.warning("llm_engine: translate_to_shell failed: %s", raw)
+        return []
     try:
         import re
         match = re.search(r'\[.*\]', raw, re.DOTALL)
@@ -179,33 +180,6 @@ Example: ["mkdir myproject", "cd myproject", "python -m venv venv"]"""
         return json.loads(raw)
     except Exception:
         return [raw]
-
-
-def generate_file_content(description: str, filename: str) -> str:
-    """
-    Generate source code or text content for a new file based on a natural-language description.
-    Returns the raw file content string (no markdown fences, no explanation).
-    """
-    from pathlib import Path as _Path
-    ext = _Path(filename).suffix.lower()
-    lang_map = {
-        ".py": "Python", ".js": "JavaScript", ".ts": "TypeScript",
-        ".html": "HTML", ".css": "CSS", ".sh": "Bash shell script",
-        ".bat": "Windows batch script", ".rb": "Ruby", ".go": "Go",
-        ".java": "Java", ".c": "C", ".cpp": "C++", ".rs": "Rust",
-        ".json": "JSON", ".yaml": "YAML", ".yml": "YAML",
-        ".toml": "TOML", ".md": "Markdown", ".txt": "plain text",
-    }
-    lang = lang_map.get(ext, "code")
-    system = (
-        f"You are a code generator. Write clean, working {lang} code based on the user's description.\n"
-        "Rules:\n"
-        "- Return ONLY the raw file content. No markdown fences (no ```). No extra explanation.\n"
-        "- Include proper imports, a __main__ guard if applicable, and working code.\n"
-        "- Add brief inline comments for clarity."
-    )
-    prompt = f"Create a {lang} file named '{filename}': {description}"
-    return _call_ollama(prompt, system=system, temperature=0.2)
 
 
 def generate_workflow_plan(goal: str, context: dict = None) -> dict:
@@ -262,10 +236,15 @@ Keep response under 200 words."""
 
 def semantic_file_match(query: str, file_list: list) -> list:
     """Use LLM to semantically rank file relevance to a query."""
+    return _semantic_file_match_cached(query, tuple(file_list))
+
+
+@lru_cache(maxsize=128)
+def _semantic_file_match_cached(query: str, file_tuple: tuple) -> list:
     system = """You are a semantic file search engine.
 Given a search query and file list, return the indices (0-based) of the most relevant files.
 Return ONLY a JSON array of integers. Max 10 results. Example: [2, 5, 0, 8]"""
-    prompt = f"Query: {query}\n\nFiles:\n" + "\n".join(f"{i}: {f}" for i, f in enumerate(file_list))
+    prompt = f"Query: {query}\n\nFiles:\n" + "\n".join(f"{i}: {f}" for i, f in enumerate(file_tuple))
     raw = _call_ollama(prompt, system=system, temperature=0.1)
     try:
         import re
@@ -274,12 +253,14 @@ Return ONLY a JSON array of integers. Max 10 results. Example: [2, 5, 0, 8]"""
             return json.loads(match.group())
     except Exception:
         pass
-    return list(range(min(5, len(file_list))))
+    return list(range(min(5, len(file_tuple))))
 
 
+@lru_cache(maxsize=256)
 def extract_search_keywords(query: str) -> list:
     """
     Use LLM to extract semantic keywords from a file search query.
+    Cached: identical queries reuse the result instead of re-calling Ollama.
     Returns a list of keyword strings (lowercase).
     Falls back to splitting the query on spaces if LLM unavailable.
     Example: "find my health related pdfs" → ["health", "medical", "clinical", "patient"]

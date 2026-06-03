@@ -11,6 +11,7 @@ Load order (each layer overrides the previous):
 import copy
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -140,28 +141,33 @@ def _load() -> dict:
 
 # ── Module-level config dict (populated once at import) ──────────────────────
 _cfg: dict = _load()
+_cfg_lock = threading.Lock()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get(section: str, key: str, default: Any = None) -> Any:
     """cfg.get('llm', 'model') → 'llama3.2:3b'"""
-    return _cfg.get(section, {}).get(key, default)
+    with _cfg_lock:
+        return _cfg.get(section, {}).get(key, default)
 
 
 def section(name: str) -> dict:
     """Return an entire config section as a dict copy."""
-    return dict(_cfg.get(name, {}))
+    with _cfg_lock:
+        return dict(_cfg.get(name, {}))
 
 
 def all_config() -> dict:
     """Return a deep copy of the full config."""
-    return copy.deepcopy(_cfg)
+    with _cfg_lock:
+        return copy.deepcopy(_cfg)
 
 
 def save_user_config(updates: dict) -> None:
     """
     Persist a partial config update to ~/.aios/config.json and apply live.
+    Thread-safe: acquires lock before mutating the global _cfg dict.
     Example: save_user_config({"voice": {"enabled": True}})
     """
     _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -177,5 +183,5 @@ def save_user_config(updates: dict) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(existing, f, indent=2)
     tmp.replace(_CONFIG_FILE)
-    # Apply live
-    _deep_merge(_cfg, updates)
+    with _cfg_lock:
+        _deep_merge(_cfg, updates)
