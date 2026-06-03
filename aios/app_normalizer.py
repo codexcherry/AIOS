@@ -259,6 +259,8 @@ ALIASES: dict[str, str] = {
     # Browsers
     "chrome":                   "chrome",
     "google chrome":            "chrome",
+    "chrome browser":           "chrome",
+    "chromium":                 "chrome",
     "browser":                  "chrome",
     "web browser":              "chrome",
     "internet":                 "chrome",

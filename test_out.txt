@@ -1,0 +1,201 @@
+
+============================================================
+  1. CONFIG
+============================================================
+  [PASS] config: defaults readable
+  [PASS] config: missing key → default
+  [PASS] config: section() returns dict
+  [PASS] config: all_config() deep copies
+  [PASS] config: save_user_config round-trip
+
+============================================================
+  2. LOGGER
+============================================================
+  [PASS] logger: standard methods exist
+  [PASS] logger: calls do not raise
+
+============================================================
+  3. CONTEXT MEMORY
+============================================================
+  [PASS] memory: start_session
+  [PASS] memory: end_session
+  [PASS] memory: save/get workflow
+  [PASS] memory: log_command
+  [PASS] memory: increment_interaction
+  [PASS] memory: index_file + search
+  [PASS] memory: corrupt JSON handled
+  [PASS] memory: concurrent writes safe
+
+============================================================
+  4. RL MEMORY
+============================================================
+  [PASS] rl: similarity identical = 1.0
+  [PASS] rl: similarity zero on no overlap
+  [PASS] rl: similarity partial
+  [PASS] rl: record_interaction
+  [PASS] rl: record_correction
+  [PASS] rl: get_relevant_examples empty
+  [PASS] rl: get_relevant_examples with match
+  [PASS] rl: build_prompt_context
+  [PASS] rl: max_corrections cap enforced
+  [PASS] rl: concurrent saves thread-safe
+
+============================================================
+  5. FILE OPS
+============================================================
+  [PASS] file_ops: resolve absolute path
+  [PASS] file_ops: traversal attack blocked
+  [PASS] file_ops: resolve_path_from_args with cwd
+  [PASS] file_ops: create with content
+  [PASS] file_ops: create existing no overwrite
+  [PASS] file_ops: create overwrite=True
+  [PASS] file_ops: create nested dirs auto-created
+  [PASS] file_ops: read existing file
+  [PASS] file_ops: read missing → error dict
+  [PASS] file_ops: delete → soft trash
+  [PASS] file_ops: delete needs confirmation
+  [PASS] file_ops: delete missing → error
+  [PASS] file_ops: rename
+  [PASS] file_ops: list_directory
+  [PASS] file_ops: update blocks LLM error string
+  [PASS] file_ops: append blocks LLM error string
+
+============================================================
+  6. FILE MANAGER
+============================================================
+  [PASS] file_manager: detect type filter pdf
+  [PASS] file_manager: detect type filter python
+  [PASS] file_manager: detect type filter none
+  [PASS] file_manager: keyword filter scores correctly
+  [PASS] file_manager: keyword filter empty → recent
+  [PASS] file_manager: scan_directory basic
+  [PASS] file_manager: scan skips noise dirs
+  [PASS] file_manager: scan respects max_files
+  [PASS] file_manager: scan results have required keys
+  [PASS] file_manager: smart_search returns list
+  [PASS] file_manager: smart_search empty dir no crash
+  [PASS] file_manager: smart_search parent key present
+  [PASS] file_manager: recent_files returns list
+
+============================================================
+  7. URL ROUTER
+============================================================
+  [PASS] url_router: play youtube
+  [PASS] url_router: google search
+  [PASS] url_router: open chrome
+  [PASS] url_router: open vscode
+  [PASS] url_router: greet hi
+  [PASS] url_router: greet hello
+  [PASS] url_router: time query
+  [PASS] url_router: date query
+  [PASS] url_router: joke
+  [PASS] url_router: take screenshot
+  [PASS] url_router: note command
+  [PASS] url_router: file search query
+  [PASS] url_router: wikipedia lookup
+  [PASS] url_router: no match returns unmatched
+  [PASS] url_router: create file intent
+  [PASS] url_router: open multiple apps
+
+============================================================
+  8. APP NORMALIZER
+============================================================
+  [PASS] app_normalizer: chrome aliases resolve
+  [PASS] app_normalizer: vscode aliases resolve
+  [PASS] app_normalizer: notepad resolves
+  [PASS] app_normalizer: unknown → None (no crash)
+  [PASS] app_normalizer: targets have required keys
+  [PASS] app_normalizer: all aliases map to valid target
+
+============================================================
+  9. PROCESS MANAGER
+============================================================
+  [PASS] process_manager: get_system_stats has keys
+  [PASS] process_manager: get_system_stats sane values
+  [PASS] process_manager: get_process_list returns list
+  [PASS] process_manager: process list has required keys
+  [PASS] process_manager: find_process returns list
+  [PASS] process_manager: kill protected → refused
+  [PASS] process_manager: kill nonexistent pid → error
+  [PASS] process_manager: protected set not empty
+
+============================================================
+  10. AI SHELL
+============================================================
+  [PASS] ai_shell: direct command pwd
+  [PASS] ai_shell: direct command list files
+  [PASS] ai_shell: cd with spaces in path
+  [PASS] ai_shell: dangerous rm -rf blocked
+  [PASS] ai_shell: dangerous format blocked
+  [Shell] Translating: 'say hello'...
+  [PASS] ai_shell: dry_run returns commands only
+  [PASS] ai_shell: DIRECT_COMMANDS not empty
+  [PASS] ai_shell: DANGEROUS_PATTERNS not empty
+  [Shell] Translating: 'do something impossible'...
+  [PASS] ai_shell: translate [] no crash
+
+============================================================
+  11. TASK EXECUTOR
+============================================================
+  [PASS] task_executor: shared pool exists
+  [PASS] task_executor: notify step succeeds
+  [PASS] task_executor: wait step succeeds
+  [PASS] task_executor: unknown action → skipped
+  [PASS] task_executor: empty workflow
+  [PASS] task_executor: sequential workflow
+  [PASS] task_executor: parallel workflow
+  [PASS] task_executor: result has all keys
+
+============================================================
+  12. WORKFLOW ENGINE
+============================================================
+  [PASS] workflow_engine: presets not empty
+  [PASS] workflow_engine: presets have steps
+  [PASS] workflow_engine: run preset by name
+  [PASS] workflow_engine: run missing → None
+  [PASS] workflow_engine: list_available
+  [PASS] workflow_engine: save_custom no crash
+  [PASS] workflow_engine: empty plan → error dict
+  [PASS] workflow_engine: malformed steps filtered
+
+============================================================
+  13. LLM ENGINE (mocked)
+============================================================
+  [PASS] llm_engine: parse_intent valid JSON
+  [PASS] llm_engine: parse_intent fallback bad JSON
+  [PASS] llm_engine: parse_intent injects rl_context
+  [PASS] llm_engine: translate_to_shell valid
+  [PASS] llm_engine: translate_to_shell error → []
+  [PASS] llm_engine: generate_file_content clean
+  [PASS] llm_engine: generate_file_content strips fences
+  [PASS] llm_engine: generate_workflow_plan valid
+  [PASS] llm_engine: generate_workflow_plan bad → empty
+  [PASS] llm_engine: chat_response returns string
+  [PASS] llm_engine: extract_keywords cached
+  [PASS] llm_engine: build_url uses existing url
+  [PASS] llm_engine: build_url play → youtube
+  [PASS] llm_engine: check_ollama_health returns bool
+
+============================================================
+  14. FEATURES (assistant, notes, screenshot)
+============================================================
+  [PASS] features: greet_user returns string
+  [PASS] features: tell_time returns string
+  [PASS] features: tell_date returns string
+  [PASS] features: tell_datetime returns string
+  [PASS] features: add_note succeeds
+  [PASS] features: add_note assigns unique id
+  [PASS] features: list_notes returns list
+  [PASS] features: list_notes newest first
+
+============================================================
+  15. DAEMONS
+============================================================
+  [PASS] daemons: start_all returns dict
+  [PASS] daemons: started daemons are alive
+  [PASS] daemons: all are daemon=True threads
+
+============================================================
+  RESULTS: 134 passed  |  0 failed  |  0 errors  |  134 total
+============================================================
+

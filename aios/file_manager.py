@@ -94,8 +94,12 @@ def _scan_directory(root: Path, max_files: int = 2000, ext_filter: Optional[set]
         for entry in root.rglob("*"):
             if len(files) >= max_files:
                 break
-            # Skip noisy dirs
-            if any(skip in entry.parts for skip in SKIP_DIRS):
+            # Skip noisy dirs (only look at path components INSIDE the root)
+            try:
+                rel_parts = entry.relative_to(root).parts
+            except ValueError:
+                rel_parts = entry.parts
+            if any(skip in rel_parts for skip in SKIP_DIRS):
                 continue
             if entry.is_file() and entry.suffix.lower() in allowed:
                 try:

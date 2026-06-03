@@ -106,6 +106,18 @@ class AIShell:
         """
         nl = natural_input.strip().lower()
 
+        # Block dangerous patterns in the raw natural-language input before any LLM translation
+        for pattern in DANGEROUS_PATTERNS:
+            if pattern in nl:
+                log.warning("Shell: blocked dangerous pattern '%s' in raw input: %s", pattern, natural_input)
+                return {
+                    "commands": [natural_input],
+                    "blocked": True,
+                    "reason": f"Dangerous pattern detected: '{pattern}'. Confirm manually.",
+                    "outputs": [],
+                    "errors": [],
+                }
+
         # Check for "create file with content" — bypass shell echo commands
         target_file = _detect_file_write(natural_input)
         if target_file:
