@@ -435,14 +435,54 @@ def _u_file_search(m):
         description=f"File search: {query}",
     )
 
-# Bare "/files" with no query → recent files (handled in main.py as notes_list-style)
-@_util(r"^/files?$")
+# Bare "/files" or "recent files" → recent files
+@_util(r"^(?:/files?|recent\s+files?|show\s+recent\s+files?)$")
 def _u_file_search_recent(m):
     return RouterResult(
         matched=True,
         file_search_query="",       # empty = list recent files
         description="Recent files",
     )
+
+# ── Natural-language local file search (no "file" keyword required) ──────────
+# "find my resume"  /  "where is my document"  /  "locate the report"
+# These MUST come after all web-search rules so "find X on google" etc. already matched.
+@_util(
+    r"^(?:"
+    r"(?:find|locate|search\s+for|look\s+for)\s+my\s+(.+?)"          # find my X
+    r"|where\s+(?:is|are)\s+(?:my\s+|the\s+)?(.+?)"                  # where is my X
+    r"|(?:find|locate|search\s+for|look\s+for)\s+(?:the\s+)?(.+?)"   # find the X (needs file word below)
+    r"\s+(?:file|document|doc|pdf|image|photo|folder|dir|report|spreadsheet|sheet|presentation|ppt|txt|log|code)"
+    r")[?!.]*$"
+)
+def _u_file_search_nlp(m):
+    # Pick whichever capture group matched
+    query = next((g.strip() for g in m.groups() if g), "")
+    if not query:
+        return RouterResult(matched=False)
+    return RouterResult(
+        matched=True,
+        file_search_query=query,
+        description=f"File search: {query}",
+    )
+
+# ── Extended process-manager shortcuts ───────────────────────────────────────
+# ps / processes / system status / what's running (no LLM needed)
+@_util(
+    r"^(?:"
+    r"ps"
+    r"|processes?"
+    r"|running\s+(?:processes?|programs?|apps?|tasks?)"
+    r"|show\s+(?:running|all)\s+(?:processes?|programs?|apps?|tasks?)"
+    r"|(?:system|resource)\s+(?:status|stats?|monitor|usage|info)"
+    r"|what(?:'s|\s+is|\s+are)\s+running"
+    r"|monitor\s+(?:system|cpu|ram|memory|resources?)"
+    r"|task\s+(?:manager|list)"
+    r"|/ps"
+    r")[?!.]*$"
+)
+def _u_process_ext(m):
+    return RouterResult(matched=True, assistant_action="process", description="Process list")
 
 # Wikipedia / person info
 @_util(r"^(?:who\s+(?:is|was)|tell\s+me\s+about|"

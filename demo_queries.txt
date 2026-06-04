@@ -1,0 +1,307 @@
+================================================================================
+  AIOS — Live Presentation Demo Script
+  Natural Language Queries by System Layer
+  Run:  python -m aios
+================================================================================
+
+Type each query exactly as written into the AIOS prompt.
+The layer tag in brackets shows which subsystem handles it.
+Lines beginning with # are presenter notes — do NOT type these.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 1 — ASSISTANT  (features/assistant.py · instant, no LLM)
+────────────────────────────────────────────────────────────────────────────────
+
+hi
+hello
+what time is it
+what's today's date
+tell me a joke
+who is Alan Turing
+tell me about machine learning
+tell me about the Roman Empire
+
+# Shows: built-in greeting, live clock, Wikipedia API integration.
+# Zero latency — no Ollama needed for these.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 2 — URL ROUTER  (url_router.py · instant regex, no LLM)
+────────────────────────────────────────────────────────────────────────────────
+
+play Believer by Imagine Dragons
+watch Python tutorial for beginners
+search Python decorators on stackoverflow
+github tensorflow
+find numpy on pypi
+open reddit
+open chatgpt
+open google colab
+search RTX 4070 on amazon
+buy wireless keyboard on flipkart
+open whatsapp web
+directions to Eiffel Tower
+news about artificial intelligence
+
+# Shows: 20+ site integrations, all matched in <1ms by pure regex.
+# No LLM call is made — the URL Router intercepts first.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 3 — APP LAUNCHER  (app_launcher.py · parallel subprocess)
+────────────────────────────────────────────────────────────────────────────────
+
+open chrome
+open vscode
+open notepad
+open chrome and vscode
+open chrome, notepad, and calculator
+open spotify
+open discord
+open task manager
+
+# Shows: parallel launch (ThreadPoolExecutor) — multiple apps start simultaneously.
+# Live timing shown per app (e.g. "✓ vscode  (312ms)").
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 4 — FILE OPERATIONS  (file_ops.py · LLM content generation)
+────────────────────────────────────────────────────────────────────────────────
+
+create a file called hello.txt
+create a Python script called fibonacci.py that prints the first 20 fibonacci numbers
+create a markdown file called notes.md about the AIOS project
+read hello.txt
+list files in the current directory
+rename hello.txt to greetings.txt
+delete greetings.txt
+
+# Shows: AI-generated file content, soft-delete (moves to trash, NOT permanent),
+# path resolution, overwrite protection.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 5 — SMART FILE MANAGER  (file_manager.py · 3-stage semantic search)
+────────────────────────────────────────────────────────────────────────────────
+
+find my python files
+find recent documents
+find my notes
+find configuration files
+find log files
+
+# Shows: Stage 1 = file type detection, Stage 2 = parallel directory scan,
+# Stage 3 = LLM semantic ranking. Returns files with score + reason.
+# Type these WITHOUT /files prefix — auto-detected by NLP.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 6 — PROCESS MANAGER  (process_manager.py · psutil)
+────────────────────────────────────────────────────────────────────────────────
+
+# Option A — natural language (auto-detected):
+what's eating my RAM
+show me what's running
+which processes are using the most CPU
+optimize my system
+
+# Option B — slash commands:
+/ps
+/optimize
+
+# Shows: live psutil data (CPU %, memory MB), protected-process guard,
+# AI optimization suggestions. Type the NL versions to demo Layer 8 (LLM) too.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 7 — AI SHELL  (ai_shell.py · NL → shell command translation)
+────────────────────────────────────────────────────────────────────────────────
+
+# Enter the shell first:
+/shell
+
+# Then type these inside the shell:
+list all python files recursively
+show disk usage of current folder
+create a directory called test_output
+show last 10 lines of any log file
+how much free memory is there
+exit
+
+# Shows: NL → shell command via LLM, dangerous command blocking
+# (e.g. "rm -rf /" is blocked before execution), dry-run mode.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 8 — LLM ENGINE  (llm_engine.py · Ollama llama3.2:3b)
+────────────────────────────────────────────────────────────────────────────────
+
+# These queries fall through to the LLM for intent parsing:
+summarize what I've been doing
+what can you do
+explain the AIOS project to me
+open my browser and search for Python documentation
+create a todo list file with 5 tasks
+
+# Shows: Ollama integration, JSON intent parsing, rl_context injection,
+# response caching (lru_cache), 6–15s first call / instant cached repeat.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 9 — WORKFLOW ENGINE  (workflow_engine.py · multi-step orchestration)
+────────────────────────────────────────────────────────────────────────────────
+
+/workflows
+/run dev mode
+/run research mode
+/run presentation mode
+
+# Shows: preset workflows (multiple steps run in sequence/parallel),
+# LLM-generated dynamic workflow plans, step validation.
+# "dev mode" typically opens vscode + terminal + browser simultaneously.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 10 — CONTEXT MEMORY  (context_memory.py · JSON session store)
+────────────────────────────────────────────────────────────────────────────────
+
+/memory
+/context
+
+# Shows: persistent session log, command history, workflow history,
+# file index (files indexed during smart search are remembered),
+# interaction counter — system gets smarter each session.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 11 — RL MEMORY  (rl_memory.py · in-context learning)
+────────────────────────────────────────────────────────────────────────────────
+
+# RL memory works silently. To demonstrate it:
+# 1. Type a query and get a result.
+# 2. Type it again — the second call is instant (cached + learned context).
+
+# The system records every interaction and injects relevant past examples
+# into the LLM prompt automatically — no user action needed.
+
+# To show it explicitly, run (developer mode):
+# python -c "from aios.rl_memory import rl; import json; print(json.dumps(rl._data, indent=2))"
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 12 — NOTES  (features/notes.py)
+────────────────────────────────────────────────────────────────────────────────
+
+note: AIOS uses llama3.2 running locally via Ollama
+note: demo day is today
+note: fix the UI before next commit
+/notes
+
+# Shows: instant note saving (no LLM), unique ID per note, newest-first listing.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 13 — SCREENSHOT  (features/screenshot.py)
+────────────────────────────────────────────────────────────────────────────────
+
+take a screenshot
+screenshot as aios_demo
+/screenshot presentation_slide
+
+# Shows: auto-named screenshots (timestamp), custom names, saved to ~/Pictures or cwd.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 14 — TRASH / SOFT DELETE  (file_ops.py + main.py)
+────────────────────────────────────────────────────────────────────────────────
+
+/trash
+
+# Shows: all soft-deleted files are recoverable. No permanent data loss.
+# Files are moved to ~/.aios/trash/ — /trash lists them with restore option.
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 15 — BACKGROUND DAEMONS  (daemons/)
+────────────────────────────────────────────────────────────────────────────────
+
+# Daemons start automatically when AIOS launches (shown in startup banner).
+# They run silently in daemon threads. To show they're alive:
+/daemons
+
+# 4 active daemons:
+#   device_monitor   → polls CPU/memory every 30s, alerts on spikes
+#   file_organizer   → watches Downloads, auto-sorts by type
+#   memory_guardian  → kills runaway processes at threshold
+#   process_watcher  → tracks process lifecycle events
+
+────────────────────────────────────────────────────────────────────────────────
+LAYER 16 — CONFIG  (config.py · layered config system)
+────────────────────────────────────────────────────────────────────────────────
+
+# Config is loaded at startup from pyproject.toml + ~/.aios/config.json.
+# To show defaults:
+# python -c "from aios import config as c; import json; print(json.dumps(c.all_config(), indent=2))"
+
+# Key config values shown during startup:
+#   ollama.model    = llama3.2:3b
+#   ollama.host     = http://localhost:11434
+#   aios.max_files  = 500
+#   aios.trash_dir  = ~/.aios/trash
+
+================================================================================
+  PRESENTATION ORDER (5-minute demo flow)
+================================================================================
+
+1.  Launch AIOS           →  python -m aios
+2.  Greeting              →  hi
+3.  Time & Date           →  what time is it
+4.  Wikipedia             →  who is Alan Turing
+5.  URL Router            →  play Believer by Imagine Dragons
+6.  App Launch (parallel) →  open chrome and vscode
+7.  File Create (AI)      →  create a Python script called fib.py that prints fibonacci numbers
+8.  File Read             →  read fib.py
+9.  Smart File Search     →  find my python files
+10. Process Manager       →  what's eating my RAM
+11. Notes                 →  note: AIOS demo successful
+12. Screenshot            →  take a screenshot
+13. Workflow              →  /workflows  then  /run dev mode
+14. Memory               →  /memory
+15. Trash / Safety        →  delete fib.py  then  /trash
+16. Exit                  →  /exit
+
+================================================================================
+  QUICK REFERENCE — All Slash Commands
+================================================================================
+
+  /shell          AI-powered interactive shell
+  /workflows      List all available workflows
+  /run <name>     Execute a named workflow
+  /ps             Live process table (CPU, RAM per process)
+  /optimize       AI memory/CPU optimization suggestions
+  /files <query>  Semantic file search
+  /recent         Recently modified files
+  /notes          List all saved notes
+  /note <text>    Save a quick note
+  /screenshot     Capture screen (auto-named)
+  /screenshot <n> Capture screen with custom filename
+  /time           Current time
+  /date           Today's date
+  /joke           Random joke
+  /memory         Full context memory dump
+  /context        Current session context
+  /trash          List & restore soft-deleted files
+  /kill <pid>     Terminate a process by PID
+  /daemons        Show background daemon status
+  /help           Full help screen
+  /clear          Clear terminal
+  /exit           Quit AIOS
+
+================================================================================
+  ARCHITECTURE SUMMARY (one-liner per layer)
+================================================================================
+
+  Config          →  pyproject.toml + ~/.aios/config.json, thread-safe reads
+  Logger          →  Rich-formatted structured log, file + console
+  Context Memory  →  JSON session store, file index, command log
+  RL Memory       →  Correction learning, similarity scoring, prompt injection
+  URL Router      →  20+ site regex rules, <1ms, zero LLM calls
+  App Normalizer  →  200+ alias → canonical app name mapping
+  App Launcher    →  Parallel subprocess launch via ThreadPoolExecutor
+  File Ops        →  CRUD + AI content gen + soft-delete + path guard
+  File Manager    →  3-stage: type-detect → parallel scan → LLM rank
+  Process Manager →  psutil live stats + protected-process kill guard
+  AI Shell        →  NL → shell cmd via LLM, dangerous pattern block
+  Task Executor   →  Shared pool, sequential + parallel step groups
+  Workflow Engine →  Preset + LLM-generated plans, step validation
+  LLM Engine      →  Ollama HTTP wrapper, lru_cache, rl_context injection
+  Features        →  Assistant / Notes / Screenshot (instant, no LLM)
+  Daemons         →  4 background threads: monitor / organizer / guardian / watcher
+
+================================================================================
